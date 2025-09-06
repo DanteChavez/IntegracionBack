@@ -7,7 +7,9 @@ import { RefundPaymentDto } from '../../application/dto/refund-payment.dto';
 export class PaymentController {
   constructor(
     private readonly paymentService: PaymentApplicationService,
-  ) {}
+  ) {
+      
+  }
 
   // TODO: Implementar endpoints
   // @Post()

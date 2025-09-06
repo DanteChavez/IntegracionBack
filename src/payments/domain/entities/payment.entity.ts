@@ -25,10 +25,24 @@ export class Payment {
     public readonly createdAt  ?: Date,
     public readonly updatedAt  ?: Date,
   ) {}
-
   // TODO: Implementar métodos de dominio
   // - updateStatus(status: PaymentStatus): void
   // - canBeRefunded(): boolean
   // - canBeCancelled(): boolean
   // - addMetadata(key: string, value: any): void
+}
+export class Domain {
+  updateStatus(status: PaymentStatus): void{
+    throw new Error('unfinished method');
+  }
+  canBeRefunded(): boolean{
+    throw new Error('unfinished method');
+  }
+  canBeCancelled(): boolean{
+    throw new Error('unfinished method');
+  }
+  addMetadata(key:string, value: any): void{
+    throw new Error('unfinished method');
+  }
+
 }

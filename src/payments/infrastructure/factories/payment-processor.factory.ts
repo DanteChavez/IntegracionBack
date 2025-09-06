@@ -7,6 +7,7 @@ export abstract class PaymentProcessorFactory {
   abstract createValidator(): PaymentValidator;
   abstract createNotifier() : PaymentNotifier;
   
+
   // TODO: Método template para crear toda la familia de objetos
   // createPaymentSuite(): PaymentSuite {
   //   return {

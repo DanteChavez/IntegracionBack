@@ -8,20 +8,18 @@ import { Payment }                  from '../../domain/entities/payment.entity';
 export class PaymentApplicationService {
   constructor(
     private readonly factoryRegistry: PaymentFactoryRegistry,
-  ) {}
+  ) {
+  }
+  async processPayment(dto: ProcessPaymentDto): Promise<Payment> {
+        const factory = this.factoryRegistry.getFactory(dto.provider);
+        const processor = factory.createProcessor();
+        const validator = factory.createValidator();
 
+      // await validator.validatePaymentData(dto);
+      throw new Error('unfinished method');
+      //return await processor.processPayment(dto);
+      }
   // TODO: Implementar casos de uso de la aplicación
-  // async processPayment(dto: ProcessPaymentDto): Promise<Payment> {
-  //   const factory = this.factoryRegistry.getFactory(dto.provider);
-  //   const processor = factory.createProcessor();
-  //   const validator = factory.createValidator();
-  //   
-  //   // Validar datos
-  //   await validator.validatePaymentData(dto);
-  //   
-  //   // Procesar pago
-  //   return await processor.processPayment(dto);
-  // }
 
   // async refundPayment(dto: RefundPaymentDto): Promise<Payment> {
   //   // Obtener el pago original para determinar el proveedor
@@ -41,3 +39,7 @@ export class PaymentApplicationService {
   //   // Manejar webhooks por proveedor
   // }
 }
+function getPaymentStatus(id: any) {
+  throw new Error('Function not implemented.');
+}
+
