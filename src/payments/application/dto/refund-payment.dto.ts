@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Min, IsBoolean, IsObject } from 'class-validator';
 
 export class RefundPaymentDto {
   @IsString()
@@ -14,9 +14,24 @@ export class RefundPaymentDto {
   reason?: string;
 
   @IsOptional()
+  @IsObject()
   metadata?: Record<string, any>;
 
-  // TODO: Agregar validaciones adicionales
-  // - refundApplicationFee?: boolean (para Stripe)
-  // - reverseTransfer?: boolean (para algunas plataformas)
+  // Validaciones adicionales específicas por proveedor
+  
+  @IsOptional()
+  @IsBoolean()
+  refundApplicationFee?: boolean; // Para Stripe: reembolsar también las comisiones
+
+  @IsOptional()
+  @IsBoolean()
+  reverseTransfer?: boolean; // Para plataformas: revertir transferencias a terceros
+
+  @IsOptional()
+  @IsString()
+  refundReason?: 'duplicate' | 'fraudulent' | 'requested_by_customer' | 'expired_uncaptured_charge'; // Razones estándar de Stripe
+
+  @IsOptional()
+  @IsString()
+  instructions?: string; // Instrucciones específicas para el procesador de pagos
 }
