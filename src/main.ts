@@ -5,6 +5,9 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  // Configurar prefijo global para todas las rutas
+  app.setGlobalPrefix('api');
+  
   // Configurar validaciones globales
   app.useGlobalPipes(new ValidationPipe({
     transform: true,

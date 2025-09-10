@@ -1,42 +1,56 @@
-import { Controller, Post, Body, Get, Param, Patch } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Patch, HttpStatus, HttpCode } from '@nestjs/common';
 import { PaymentApplicationService } from '../../application/services/payment-application.service';
 import { ProcessPaymentDto } from '../../application/dto/process-payment.dto';
 import { RefundPaymentDto } from '../../application/dto/refund-payment.dto';
 
-@Controller('payments')
+@Controller('pagos') // Cambio a 'pagos' como solicitaste
 export class PaymentController {
   constructor(
     private readonly paymentService: PaymentApplicationService,
-  ) {
-      
+  ) {}
+
+  // POST /pagos - Crear un nuevo pago
+  @Post()
+  @HttpCode(HttpStatus.CREATED) // 201 Created
+  async createPayment(@Body() dto: ProcessPaymentDto) {
+    return await this.paymentService.processPayment(dto);
   }
 
-  // TODO: Implementar endpoints
-  // @Post()
-  // async processPayment(@Body() dto: ProcessPaymentDto) {
-  //   return await this.paymentService.processPayment(dto);
-  // }
+  // GET /pagos - Obtener todos los pagos
+  @Get()
+  @HttpCode(HttpStatus.OK) // 200 OK
+  async getAllPayments() {
+    return await this.paymentService.getAllPayments();
+  }
 
-  // @Post(':id/refund')
-  // async refundPayment(
-  //   @Param('id') id: string,
-  //   @Body() dto: RefundPaymentDto,
-  // ) {
-  //   return await this.paymentService.refundPayment({ ...dto, paymentId: id });
-  // }
+  // GET /pagos/:id - Obtener un pago específico por ID
+  @Get(':id')
+  @HttpCode(HttpStatus.OK) // 200 OK
+  async getPayment(@Param('id') id: string) {
+    return await this.paymentService.getPaymentById(id);
+  }
 
-  // @Patch(':id/cancel')
-  // async cancelPayment(@Param('id') id: string) {
-  //   return await this.paymentService.cancelPayment(id);
-  // }
+  // POST /pagos/:id/refund - Reembolsar un pago
+  @Post(':id/refund')
+  @HttpCode(HttpStatus.OK) // 200 OK
+  async refundPayment(
+    @Param('id') id: string,
+    @Body() dto: RefundPaymentDto,
+  ) {
+    return await this.paymentService.refundPayment({ ...dto, paymentId: id });
+  }
 
-  // @Get(':id')
-  // async getPayment(@Param('id') id: string) {
-  //   return await this.paymentService.getPaymentStatus(id);
-  // }
+  // PATCH /pagos/:id/cancel - Cancelar un pago
+  @Patch(':id/cancel')
+  @HttpCode(HttpStatus.OK) // 200 OK
+  async cancelPayment(@Param('id') id: string) {
+    return await this.paymentService.cancelPayment(id);
+  }
 
-  // @Get(':id/status')
-  // async getPaymentStatus(@Param('id') id: string) {
-  //   return await this.paymentService.getPaymentStatus(id);
-  // }
+  // GET /pagos/:id/status - Obtener estado de un pago
+  @Get(':id/status')
+  @HttpCode(HttpStatus.OK) // 200 OK
+  async getPaymentStatus(@Param('id') id: string) {
+    return await this.paymentService.getPaymentStatus(id);
+  }
 }
