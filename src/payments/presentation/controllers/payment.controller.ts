@@ -54,3 +54,6 @@ export class PaymentController {
     return await this.paymentService.getPaymentStatus(id);
   }
 }
+// TODO
+// GET reembolso de pago por id
+// GET todos los reembolsos
