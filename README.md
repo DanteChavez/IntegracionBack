@@ -116,7 +116,8 @@ La autenticación está implementada usando JWT (JSON Web Tokens):
    - **Linux**: `sudo systemctl start mongod`
 
 5. Crear los certificados y claves del HTTPS, u colocarlas en `./secrets` utilizando estos comandos
-  ```openssl genrsa -out pulgashopkey.pem
+  ```bash
+  openssl genrsa -out pulgashopkey.pem
   openssl req -x509 -new -nodes -key pulgashopkey.pem -sha256 -days 1024 -out pulgashopcert.pem
   ```
 
