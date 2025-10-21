@@ -1,6 +1,10 @@
 import { Payment } from '../entities/payment.entity';
 
 export interface PaymentRepository {
+
+    findById(id: string): Promise<Payment | null>{
+
+    }
   // TODO: Implementar métodos del repositorio
   // - save(payment: Payment): Promise<Payment>
   // - findById(id: string): Promise<Payment | null>
