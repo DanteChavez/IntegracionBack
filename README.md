@@ -1,6 +1,6 @@
 # Backend NestJS para GPI Template - Universidad de Valparaíso
 
-Este proyecto es un backend desarrollado con NestJS y MongoDB para el template GPI de la Universidad de Valparaíso. El backend proporciona una API RESTful que se integra con el frontend React, ofreciendo funcionalidades de autenticación y gestión de usuarios.
+Este proyecto es un backend desarrollado con NestJS que implementa un sistema completo de procesamiento de pagos con múltiples proveedores (Stripe, PayPal, Webpay), autenticación JWT, gestión de usuarios y documentación interactiva con Swagger.
 
 ## 🚀 Tecnologías
 
@@ -12,8 +12,10 @@ Este backend utiliza las siguientes tecnologías:
 - **Mongoose**: Biblioteca ODM (Object Data Modeling) para MongoDB
 - **JWT**: JSON Web Tokens para autenticación
 - **Passport**: Middleware para autenticación
+- **Swagger/OpenAPI**: Documentación interactiva de la API
 - **Class Validator**: Validación de datos basada en decoradores
 - **bcrypt**: Librería para hashear contraseñas
+- **HTTPS/TLS**: Comunicación segura con certificados SSL
 
 ## 📁 Estructura de Carpetas
 
@@ -21,7 +23,7 @@ Este backend utiliza las siguientes tecnologías:
 backend/
 ├── src/
 │   ├── app.module.ts                # Módulo principal
-│   ├── main.ts                      # Punto de entrada
+│   ├── main.ts                      # Punto de entrada con HTTPS y Swagger
 │   ├── config/                      # Configuraciones
 │   │   ├── database.config.ts       # Configuración de MongoDB
 │   │   ├── jwt.config.ts            # Configuración de JWT
@@ -46,7 +48,45 @@ backend/
 │   │   └── dto/                     # DTOs
 │   │       ├── create-user.dto.ts   # DTO para crear usuario
 │   │       └── update-user.dto.ts   # DTO para actualizar usuario
+│   ├── payments/                    # Módulo de pagos (DDD Architecture)
+│   │   ├── payments.module.ts       # Módulo de pagos
+│   │   ├── application/             # Capa de aplicación
+│   │   │   ├── dto/                 # DTOs de pagos
+│   │   │   │   ├── process-payment.dto.ts
+│   │   │   │   └── refund-payment.dto.ts
+│   │   │   ├── handlers/            # Manejadores de comandos/eventos
+│   │   │   └── services/            # Servicios de aplicación
+│   │   │       └── payment-application.service.ts
+│   │   ├── domain/                  # Capa de dominio
+│   │   │   ├── entities/            # Entidades de dominio
+│   │   │   │   ├── payment.entity.ts
+│   │   │   │   └── payment-method.entity.ts
+│   │   │   ├── repositories/        # Interfaces de repositorios
+│   │   │   │   └── payment.repository.ts
+│   │   │   └── services/            # Servicios de dominio
+│   │   │       └── payment-domain.service.ts
+│   │   ├── infrastructure/          # Capa de infraestructura
+│   │   │   ├── adapters/            # Adaptadores externos
+│   │   │   ├── factories/           # Fábricas de procesadores
+│   │   │   │   ├── payment-factory-registry.service.ts
+│   │   │   │   ├── payment-processor.factory.ts
+│   │   │   │   ├── payment-processor.interface.ts
+│   │   │   │   ├── payment-validator.interface.ts
+│   │   │   │   ├── payment-notifier.interface.ts
+│   │   │   │   ├── stripe-payment.factory.ts
+│   │   │   │   └── paypal-payment.factory.ts
+│   │   │   └── processors/          # Procesadores de pago
+│   │   │       ├── stripe-payment.processor.ts
+│   │   │       └── paypal-payment.processor.ts
+│   │   └── presentation/            # Capa de presentación
+│   │       ├── controllers/         # Controladores HTTP
+│   │       │   ├── payment.controller.ts
+│   │       │   └── webhook.controller.ts
+│   │       └── middleware/          # Middlewares
 │   └── common/                      # Código compartido
+├── secrets/                         # Certificados SSL/TLS
+│   ├── pulgashopkey.pem            # Clave privada
+│   └── pulgashopcert.pem           # Certificado
 ├── .env                             # Variables de entorno
 ├── nest-cli.json                    # Configuración de NestJS CLI
 ├── package.json                     # Dependencias
@@ -55,21 +95,58 @@ backend/
 
 ## 🏗️ Arquitectura
 
-### Módulos
+### Módulos Principales
 
 El backend está organizado en módulos, siguiendo las mejores prácticas de NestJS:
 
 - **AppModule**: Módulo raíz que importa el resto de módulos
-- **AuthModule**: Gestiona la autenticación y autorización
+- **AuthModule**: Gestiona la autenticación y autorización con JWT
 - **UsersModule**: Gestiona las operaciones CRUD de usuarios
+- **PaymentsModule**: Sistema completo de procesamiento de pagos con arquitectura DDD
 
-### Patrón de Arquitectura
+### Arquitectura DDD del Módulo de Pagos
 
-La aplicación sigue una arquitectura en capas:
+El módulo de pagos implementa Domain-Driven Design (DDD) con las siguientes capas:
 
-- **Controladores**: Gestionan las solicitudes HTTP y respuestas
-- **Servicios**: Contienen la lógica de negocio
-- **Repositorios**: Interactúan con la base de datos (a través de Mongoose)
+1. **Domain (Dominio)**:
+   - Entidades de negocio (`Payment`, `PaymentMethod`)
+   - Interfaces de repositorios
+   - Servicios de dominio con lógica de negocio
+
+2. **Application (Aplicación)**:
+   - DTOs para validación de entrada
+   - Servicios de aplicación que orquestan casos de uso
+   - Handlers de comandos y eventos
+
+3. **Infrastructure (Infraestructura)**:
+   - Implementaciones de repositorios
+   - Adaptadores a servicios externos (Stripe, PayPal, Webpay)
+   - Factories para crear procesadores de pago
+   - Procesadores específicos por proveedor
+
+4. **Presentation (Presentación)**:
+   - Controladores HTTP con documentación Swagger
+   - Middlewares de validación
+   - Webhooks para notificaciones de proveedores
+
+### Patrón Factory
+
+El sistema utiliza el patrón Factory para crear procesadores de pago dinámicamente:
+
+```typescript
+// Registro centralizado de fábricas
+PaymentFactoryRegistry
+  ├── StripePaymentFactory
+  ├── PayPalPaymentFactory
+  └── WebpayPaymentFactory
+
+// Cada factory implementa
+interface IPaymentProcessorFactory {
+  createProcessor(): IPaymentProcessor;
+  createValidator(): IPaymentValidator;
+  createNotifier(): IPaymentNotifier;
+}
+```
 
 ### Sistema de Autenticación
 
@@ -80,20 +157,24 @@ La autenticación está implementada usando JWT (JSON Web Tokens):
 3. El cliente almacena el token y lo incluye en cada solicitud
 4. Los guards verifican el token para proteger las rutas
 
+### HTTPS y Seguridad
+
+- El servidor está configurado para ejecutarse con HTTPS usando certificados SSL/TLS
+- Los certificados se almacenan en la carpeta `secrets/`
+
 ## ⚙️ Instalación y Configuración
 
 ### Requisitos Previos
 
-- Node.js (versión recomendada: 18.x o superior)
-- pnpm (sigue las instrucciones de instalación del README del frontend)
-- MongoDB (instalado localmente o una instancia en la nube como MongoDB Atlas)
+- Node.js (versión 18.x o superior)
+- pnpm (gestor de paquetes)
+- Certificados SSL para HTTPS (opcional en desarrollo)
 
 ### Instalación
 
 1. Clona este repositorio:
    ```bash
    git clone <url-del-repositorio>
-   cd backend
    ```
 
 2. Instala las dependencias con pnpm:
@@ -102,18 +183,31 @@ La autenticación está implementada usando JWT (JSON Web Tokens):
    ```
 
 3. Crea un archivo `.env` en la raíz del proyecto con el siguiente contenido:
-   ```
+   ```env
    NODE_ENV=development
    PORT=3000
-   MONGODB_URI=mongodb://localhost:27017/gpi_database
    JWT_SECRET=EstoEsUnSecretoSuperSeguroParaElCursoGPI
    JWT_EXPIRES_IN=1d
+   
+   # Stripe
+   STRIPE_SECRET_KEY=sk_test_...
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   
+   # PayPal
+   PAYPAL_CLIENT_ID=your_paypal_client_id
+   PAYPAL_CLIENT_SECRET=your_paypal_client_secret
+   PAYPAL_MODE=sandbox
+   
+   # Webpay
+   WEBPAY_COMMERCE_CODE=your_commerce_code
+   WEBPAY_API_KEY=your_api_key
    ```
 
-4. Asegúrate de que MongoDB esté en ejecución:
-   - **Windows**: Inicia el servicio MongoDB
-   - **macOS**: `brew services start mongodb-community`
-   - **Linux**: `sudo systemctl start mongod`
+4. Genera certificados SSL para HTTPS (opcional en desarrollo):
+   ```bash
+   mkdir secrets
+   # Copiar tus certificados pulgashopkey.pem y pulgashopcert.pem a secrets/
+   ```
 
 ### Ejecución
 
@@ -121,13 +215,27 @@ La autenticación está implementada usando JWT (JSON Web Tokens):
   ```bash
   pnpm start:dev
   ```
-  Esto iniciará el servidor en modo desarrollo con recarga automática en `http://localhost:3000/api`
+  Esto iniciará el servidor en modo desarrollo con recarga automática en `https://localhost:3000/api`
 
 - **Producción**:
   ```bash
   pnpm build
   pnpm start:prod
   ```
+
+## 📚 Documentación API (Swagger)
+
+Una vez iniciado el servidor, la documentación interactiva de Swagger está disponible en:
+
+```
+https://localhost:3000/api/docs
+```
+
+Swagger proporciona:
+- Documentación completa de todos los endpoints
+- Posibilidad de probar las APIs directamente desde el navegador
+- Esquemas de request/response
+- Códigos de estado HTTP y ejemplos
 
 ## 🌐 API Endpoints
 
@@ -150,6 +258,18 @@ La autenticación está implementada usando JWT (JSON Web Tokens):
     "password": "password123"
   }
   ```
+  Respuesta:
+  ```json
+  {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": "...",
+      "email": "john.doe@example.com",
+      "name": "John",
+      "lastName": "Doe"
+    }
+  }
+  ```
 
 - **GET /api/auth/me**: Obtener información del usuario autenticado (requiere token JWT)
 
@@ -160,17 +280,79 @@ La autenticación está implementada usando JWT (JSON Web Tokens):
 - **PATCH /api/users/:id**: Actualizar un usuario (requiere token JWT)
 - **DELETE /api/users/:id**: Eliminar un usuario (requiere token JWT)
 
+### Pagos
+
+- **POST /api/pagos/process**: Procesar un nuevo pago
+  ```json
+  {
+    "amount": 10000,
+    "currency": "CLP",
+    "paymentMethod": "stripe",
+    "description": "Compra de producto",
+    "metadata": {
+      "orderId": "12345",
+      "customerId": "user123"
+    }
+  }
+  ```
+
+- **GET /api/pagos**: Obtener todos los pagos (paginado)
+  ```
+  Query params: ?page=1&limit=10&status=completed
+  ```
+
+- **GET /api/pagos/:id**: Obtener detalles de un pago específico
+
+- **POST /api/pagos/:id/refund**: Solicitar reembolso de un pago
+  ```json
+  {
+    "amount": 10000,
+    "reason": "Producto defectuoso"
+  }
+  ```
+
+- **POST /api/pagos/:id/cancel**: Cancelar un pago pendiente
+
+### Webhooks
+
+- **POST /api/webhooks/stripe**: Webhook para notificaciones de Stripe
+- **POST /api/webhooks/paypal**: Webhook para notificaciones de PayPal
+- **POST /api/webhooks/webpay**: Webhook para notificaciones de Webpay
+
+## 💳 Proveedores de Pago Soportados
+
+### Stripe
+
+- Procesamiento de tarjetas de crédito/débito
+- Pagos recurrentes
+- Gestión de reembolsos
+- Webhooks para notificaciones en tiempo real
+
+### PayPal
+
+- Pagos con cuenta PayPal
+- Checkout Express
+- Gestión de reembolsos
+- Notificaciones IPN (Instant Payment Notification)
+
+### Webpay (Transbank)
+
+- Procesamiento de pagos en Chile
+- Integración con Webpay Plus
+- Soporte para tarjetas chilenas
+- Validación con OneClick
+
 ## 🔄 Integración con el Frontend
 
 Para integrar este backend con el frontend React:
 
-1. En el frontend, asegúrate de que los servicios en `src/db/services` apunten a la URL correcta del backend:
+1. Configura la URL base de la API:
    ```typescript
-   // src/db/config/api.ts
+   // config/api.ts
    import axios from 'axios';
 
    export const api = axios.create({
-     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+     baseURL: import.meta.env.VITE_API_URL || 'https://localhost:3000/api',
      timeout: 10000,
      headers: {
        'Content-Type': 'application/json'
@@ -187,17 +369,27 @@ Para integrar este backend con el frontend React:
    });
    ```
 
-2. Los hooks de autenticación en el frontend deben usar los endpoints correspondientes:
+2. Implementa servicios para autenticación:
    ```typescript
-   // Ejemplo de login en el frontend
-   const login = async (email, password) => {
-     try {
-       const response = await api.post('/auth/login', { email, password });
-       localStorage.setItem('token', response.data.access_token);
-       return response.data.user;
-     } catch (error) {
-       throw new Error('Error de autenticación');
-     }
+   // services/auth.service.ts
+   const login = async (email: string, password: string) => {
+     const response = await api.post('/auth/login', { email, password });
+     localStorage.setItem('token', response.data.access_token);
+     return response.data.user;
+   };
+   ```
+
+3. Implementa servicios para pagos:
+   ```typescript
+   // services/payment.service.ts
+   const processPayment = async (paymentData: ProcessPaymentDto) => {
+     const response = await api.post('/pagos/process', paymentData);
+     return response.data;
+   };
+
+   const getPaymentStatus = async (paymentId: string) => {
+     const response = await api.get(`/pagos/${paymentId}`);
+     return response.data;
    };
    ```
 
@@ -287,23 +479,80 @@ export class AuthService {
 
 ## 🛠️ Personalización y Extensión
 
+### Añadir un Nuevo Proveedor de Pago
+
+1. Crea una nueva factory en `src/payments/infrastructure/factories/`:
+   ```typescript
+   @Injectable()
+   export class MercadoPagoPaymentFactory implements IPaymentProcessorFactory {
+     createProcessor(): IPaymentProcessor {
+       return new MercadoPagoPaymentProcessor();
+     }
+     // ...
+   }
+   ```
+
+2. Implementa el procesador en `src/payments/infrastructure/processors/`:
+   ```typescript
+   export class MercadoPagoPaymentProcessor implements IPaymentProcessor {
+     async process(payment: Payment): Promise<PaymentResult> {
+       // Lógica de integración con Mercado Pago
+     }
+   }
+   ```
+
+3. Registra la factory en el módulo de pagos:
+   ```typescript
+   @Module({
+     providers: [
+       // ...
+       MercadoPagoPaymentFactory,
+     ],
+   })
+   export class PaymentsModule {
+     constructor(
+       private registry: PaymentFactoryRegistry,
+       private mercadoPagoFactory: MercadoPagoPaymentFactory,
+     ) {
+       this.registry.register('mercadopago', this.mercadoPagoFactory);
+     }
+   }
+   ```
+
 ### Añadir un Nuevo Módulo
 
-1. Crea una nueva carpeta con la estructura de módulo dentro de `src/`
-2. Define el esquema, DTOs, controlador y servicio
+1. Genera el módulo con NestJS CLI:
+   ```bash
+   nest generate module orders
+   nest generate controller orders
+   nest generate service orders
+   ```
+
+2. Define el esquema, DTOs y lógica de negocio
+
 3. Importa el módulo en `app.module.ts`
 
-### Añadir un Nuevo Endpoint
+## 🧪 Testing
 
-1. Añade un nuevo método en el controlador correspondiente
-2. Implementa la lógica en el servicio
-3. Define los DTOs necesarios para la validación
+```bash
+# Tests unitarios
+pnpm test
 
-### Añadir un Nuevo Guard
+# Tests e2e
+pnpm test:e2e
 
-1. Crea un nuevo guard en `src/common/guards` o en el módulo específico
-2. Implementa la lógica de autorización
-3. Aplica el guard a nivel de controlador o ruta
+# Cobertura de tests
+pnpm test:cov
+```
+
+## 🔐 Seguridad
+
+- Las contraseñas se hashean con bcrypt antes de almacenarse
+- JWT con tiempo de expiración configurable
+- HTTPS obligatorio en producción
+- Validación de entrada en todos los endpoints
+- Rate limiting recomendado para producción
+- Webhooks validados con firmas de proveedor
 
 ## ⚠️ Notas Importantes
 
@@ -314,8 +563,4 @@ export class AuthService {
 
 ---
 
-<<<<<<< HEAD
 Desarrollado para la asignatura de Gestión de Proyecto Informático - Diego Monsalves - René Noël - Universidad de Valparaíso
-=======
-Desarrollado para la asignatura de Gestión de Proyecto Informático - Diego Monsalves - René Noël - Universidad de Valparaíso
->>>>>>> structure
