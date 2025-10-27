@@ -314,4 +314,8 @@ export class AuthService {
 
 ---
 
+<<<<<<< HEAD
 Desarrollado para la asignatura de Gestión de Proyecto Informático - Diego Monsalves - René Noël - Universidad de Valparaíso
+=======
+Desarrollado para la asignatura de Gestión de Proyecto Informático - Diego Monsalves - René Noël - Universidad de Valparaíso
+>>>>>>> structure
