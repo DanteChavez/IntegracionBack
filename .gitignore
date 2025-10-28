@@ -13,6 +13,9 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+# Documentation
+docs/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -283,3 +286,4 @@ mercadopago-test-data/
 # Webhooks testing
 webhook-test-data/
 ngrok-*/
+

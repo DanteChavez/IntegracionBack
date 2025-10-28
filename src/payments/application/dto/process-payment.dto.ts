@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, IsString, Min, ValidateIf, IsUrl, IsObject, Matches, Length, IsNotEmpty } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString, Min, ValidateIf, IsUrl, IsObject, Matches, Length, IsNotEmpty, Max, IsInt } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaymentProvider } from '../../domain/entities/payment.entity';
 import { Transform } from 'class-transformer';
@@ -26,6 +26,7 @@ export type PaymentMethodData = StripePaymentMethod | WebpayPaymentMethod | Payp
  * CA2: Los datos de tarjeta NO deben almacenarse en la base de datos
  * CA3: Validación CVV requerida para verificación de identidad
  * CA6: Protección de datos personales con enmascaramiento
+ * CA13: Validación de fecha de vencimiento de tarjetas (Historia de Usuario 1)
  * 
  * NOTA: Este DTO recibe el CVV solo para validación, NUNCA se almacena en BD
  */
@@ -62,6 +63,29 @@ export class CardSecurityData {
   @IsString()
   @Transform(({ value }) => value?.toUpperCase())
   cardHolderName?: string;
+
+  @ApiPropertyOptional({
+    description: 'Mes de vencimiento de la tarjeta (1-12) - CA13: Historia de Usuario 1',
+    example: 12,
+    minimum: 1,
+    maximum: 12,
+  })
+  @IsOptional()
+  @IsInt({ message: 'El mes de vencimiento debe ser un número entero' })
+  @Min(1, { message: 'El mes de vencimiento debe estar entre 1 y 12' })
+  @Max(12, { message: 'El mes de vencimiento debe estar entre 1 y 12' })
+  expiryMonth?: number;
+
+  @ApiPropertyOptional({
+    description: 'Año de vencimiento de la tarjeta (YYYY) - CA13: Historia de Usuario 1',
+    example: 2025,
+    minimum: 2024,
+  })
+  @IsOptional()
+  @IsInt({ message: 'El año de vencimiento debe ser un número entero' })
+  @Min(2024, { message: 'El año de vencimiento no puede ser anterior a 2024' })
+  @Max(2050, { message: 'El año de vencimiento no puede ser posterior a 2050' })
+  expiryYear?: number;
 }
 
 export class ProcessPaymentDto {

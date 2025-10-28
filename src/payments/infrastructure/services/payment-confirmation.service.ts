@@ -1,9 +1,10 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { SecurityAuditService } from './security-audit.service';
 import { 
   ConfirmPaymentAmountDto, 
   PaymentAmountConfirmationResponse 
 } from '../../application/dto/confirm-amount.dto';
+import { PaymentSessionInfoDto } from '../../application/dto/payment-method-info.dto';
 import * as crypto from 'crypto';
 
 interface ConfirmationCache {
@@ -137,6 +138,44 @@ export class PaymentConfirmationService {
    */
   async invalidateConfirmation(confirmationToken: string): Promise<void> {
     this.confirmationCache.delete(confirmationToken);
+  }
+
+  /**
+   * Historia de Usuario 1 - CA2: Obtener información de sesión con temporizador
+   * Retorna el tiempo restante para completar el pago
+   */
+  async getSessionInfo(sessionId: string): Promise<PaymentSessionInfoDto> {
+    // Buscar confirmación activa para esta sesión
+    let activeConfirmation: { token: string; data: ConfirmationCache } | null = null;
+
+    for (const [token, confirmation] of this.confirmationCache.entries()) {
+      if (confirmation.sessionId === sessionId) {
+        activeConfirmation = { token, data: confirmation };
+        break;
+      }
+    }
+
+    if (!activeConfirmation) {
+      throw new NotFoundException(
+        'No hay una sesión de pago activa con este ID o la sesión ha expirado',
+      );
+    }
+
+    const now = new Date();
+    const expiresAt = activeConfirmation.data.expiresAt;
+    const remainingMs = expiresAt.getTime() - now.getTime();
+    const remainingSeconds = Math.max(0, Math.floor(remainingMs / 1000));
+    const expired = remainingSeconds === 0;
+
+    return {
+      sessionId: activeConfirmation.data.sessionId,
+      confirmationToken: activeConfirmation.token,
+      amount: activeConfirmation.data.amount,
+      currency: activeConfirmation.data.currency,
+      expiresAt: expiresAt.toISOString(),
+      remainingSeconds,
+      expired,
+    };
   }
 
   // ===== MÉTODOS PRIVADOS =====

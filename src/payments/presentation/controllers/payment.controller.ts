@@ -4,6 +4,12 @@ import { PaymentApplicationService } from '../../application/services/payment-ap
 import { ProcessPaymentDto } from '../../application/dto/process-payment.dto';
 import { RefundPaymentDto } from '../../application/dto/refund-payment.dto';
 import { ConfirmPaymentAmountDto, PaymentAmountConfirmationResponse } from '../../application/dto/confirm-amount.dto';
+import { 
+  PaymentMethodInfoDto, 
+  ValidatePaymentMethodDto, 
+  PaymentMethodValidationResponse,
+  PaymentSessionInfoDto 
+} from '../../application/dto/payment-method-info.dto';
 import { PaymentAttemptGuard } from '../../infrastructure/guards/payment-attempt.guard';
 import { SecurityAuditService } from '../../infrastructure/services/security-audit.service';
 import { PaymentConfirmationService } from '../../infrastructure/services/payment-confirmation.service';
@@ -17,6 +23,99 @@ export class PaymentController {
     private readonly securityAuditService: SecurityAuditService,
     private readonly confirmationService: PaymentConfirmationService,
   ) {}
+
+  /**
+   * GET /api/pagos/payment-methods
+   * Historia de Usuario 1 - CA8, CA9: Obtener métodos de pago disponibles
+   */
+  @Get('payment-methods')
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('interfaz-pago')
+  @ApiOperation({
+    summary: 'Obtener lista de métodos de pago disponibles',
+    description: 
+      'Retorna información completa de todos los métodos de pago soportados ' +
+      'para que el frontend pueda mostrar la interfaz de selección. ' +
+      'Incluye logos, validaciones requeridas, y monedas soportadas.\n\n' +
+      '**Historia de Usuario 1:**\n' +
+      '- CA8: Mostrar al menos 2 métodos de pago disponibles\n' +
+      '- CA9: Mostrar los métodos con íconos reconocibles y nombres claros\n' +
+      '- CA11: Información de validación para cada método',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de métodos de pago disponibles',
+    type: [PaymentMethodInfoDto],
+  })
+  async getPaymentMethods(): Promise<PaymentMethodInfoDto[]> {
+    return this.paymentService.getAvailablePaymentMethods();
+  }
+
+  /**
+   * POST /api/pagos/validate-payment-method
+   * Historia de Usuario 1 - CA11, CA12, CA13: Validar método de pago antes de procesar
+   */
+  @Post('validate-payment-method')
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('interfaz-pago')
+  @ApiOperation({
+    summary: 'Validar formato de método de pago',
+    description: 
+      'Valida el formato de tarjeta, CVV, y fecha de vencimiento ' +
+      'antes de proceder al procesamiento del pago. ' +
+      'Retorna errores específicos por campo para mostrar en el frontend.\n\n' +
+      '**Historia de Usuario 1:**\n' +
+      '- CA11: Validar el formato del método de pago antes de proceder\n' +
+      '- CA12: Mostrar mensajes de error específicos y claros\n' +
+      '- CA13: Validar la fecha de vencimiento de tarjetas\n' +
+      '- CA15: No permitir avanzar hasta que la validación sea exitosa',
+  })
+  @ApiBody({ type: ValidatePaymentMethodDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Resultado de validación',
+    type: PaymentMethodValidationResponse,
+  })
+  async validatePaymentMethod(
+    @Body() dto: ValidatePaymentMethodDto,
+  ): Promise<PaymentMethodValidationResponse> {
+    return this.paymentService.validatePaymentMethod(dto);
+  }
+
+  /**
+   * GET /api/pagos/session/:sessionId
+   * Historia de Usuario 1 - CA2: Obtener información de sesión con temporizador
+   */
+  @Get('session/:sessionId')
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('interfaz-pago')
+  @ApiOperation({
+    summary: 'Obtener información de sesión de pago',
+    description: 
+      'Retorna el estado de la sesión de pago incluyendo tiempo restante ' +
+      'para completar el pago (temporizador).\n\n' +
+      '**Historia de Usuario 1:**\n' +
+      '- CA2: Mostrar un temporizador o indicación del tiempo límite',
+  })
+  @ApiParam({
+    name: 'sessionId',
+    description: 'ID de la sesión de pago',
+    example: 'sess_1a2b3c4d5e6f',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Información de sesión con temporizador',
+    type: PaymentSessionInfoDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Sesión no encontrada o expirada',
+  })
+  async getPaymentSession(
+    @Param('sessionId') sessionId: string,
+  ): Promise<PaymentSessionInfoDto> {
+    return this.confirmationService.getSessionInfo(sessionId);
+  }
 
   /**
    * PASO 1: Confirmar el monto antes de procesar el pago

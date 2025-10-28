@@ -11,7 +11,8 @@ import { PaymentAttemptGuard }          from './infrastructure/guards/payment-at
 import { 
   DataSanitizationMiddleware, 
   SecurityHeadersMiddleware, 
-  HttpsOnlyMiddleware 
+  HttpsOnlyMiddleware,
+  SecurityContextMiddleware,
 } from './infrastructure/middleware/security.middleware';
 
 @Module({
@@ -70,17 +71,23 @@ import {
 })
 export class PaymentsModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // CA1: Forzar HTTPS en producción
+    // Orden de middlewares (importante):
+    // 1. Extraer contexto de seguridad (sessionId, userId, ipAddress)
+    consumer
+      .apply(SecurityContextMiddleware)
+      .forRoutes(PaymentController, WebhookController);
+
+    // 2. CA1: Forzar HTTPS en producción
     consumer
       .apply(HttpsOnlyMiddleware)
       .forRoutes(PaymentController, WebhookController);
 
-    // CA1, CA6: Headers de seguridad HTTP
+    // 3. CA1, CA6: Headers de seguridad HTTP
     consumer
       .apply(SecurityHeadersMiddleware)
       .forRoutes(PaymentController, WebhookController);
 
-    // CA6: Sanitización de datos sensibles
+    // 4. CA6: Sanitización de datos sensibles
     consumer
       .apply(DataSanitizationMiddleware)
       .forRoutes(

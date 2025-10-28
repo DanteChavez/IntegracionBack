@@ -150,3 +150,31 @@ export class HttpsOnlyMiddleware implements NestMiddleware {
     next();
   }
 }
+
+/**
+ * Middleware para extraer contexto de seguridad desde headers
+ * Historia de Usuario 2 - Contexto de usuario y sesión para auditoría
+ */
+@Injectable()
+export class SecurityContextMiddleware implements NestMiddleware {
+  use(req: Request, res: Response, next: NextFunction) {
+    // Extraer información de seguridad de los headers
+    const sessionId = (req.headers['x-session-id'] as string) || 'unknown';
+    const userId = (req.headers['x-user-id'] as string) || 'anonymous';
+    const ipAddress = (req.headers['x-forwarded-for'] as string) || 
+                      req.socket.remoteAddress || 
+                      'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+
+    // Agregar contexto de seguridad al request
+    (req as any).securityContext = {
+      sessionId,
+      userId,
+      ipAddress,
+      userAgent,
+      timestamp: new Date(),
+    };
+
+    next();
+  }
+}
