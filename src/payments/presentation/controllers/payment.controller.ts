@@ -1,35 +1,92 @@
-import { Controller, Post, Body, Get, Param, Patch, HttpStatus, HttpCode } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
+import { Controller, Post, Body, Get, Param, Patch, HttpStatus, HttpCode, UseGuards, Req } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { PaymentApplicationService } from '../../application/services/payment-application.service';
 import { ProcessPaymentDto } from '../../application/dto/process-payment.dto';
 import { RefundPaymentDto } from '../../application/dto/refund-payment.dto';
+import { ConfirmPaymentAmountDto, PaymentAmountConfirmationResponse } from '../../application/dto/confirm-amount.dto';
+import { PaymentAttemptGuard } from '../../infrastructure/guards/payment-attempt.guard';
+import { SecurityAuditService } from '../../infrastructure/services/security-audit.service';
+import { PaymentConfirmationService } from '../../infrastructure/services/payment-confirmation.service';
+import { Request } from 'express';
 
 @ApiTags('pagos')
 @Controller('pagos')
 export class PaymentController {
   constructor(
     private readonly paymentService: PaymentApplicationService,
+    private readonly securityAuditService: SecurityAuditService,
+    private readonly confirmationService: PaymentConfirmationService,
   ) {}
 
+  /**
+   * PASO 1: Confirmar el monto antes de procesar el pago
+   * Cumple con requisito de confirmación de monto y seguridad
+   */
+  @Post('confirm-amount')
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('seguridad')
+  @ApiOperation({
+    summary: 'Confirmar monto antes de procesar el pago',
+    description: 
+      'Genera un token de confirmación temporal para el monto del pago. ' +
+      'Este token debe ser usado en el siguiente paso para procesar el pago. ' +
+      'El token expira en 5 minutos por seguridad.',
+  })
+  @ApiBody({ type: ConfirmPaymentAmountDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Monto confirmado exitosamente',
+    type: PaymentAmountConfirmationResponse,
+  })
+  async confirmAmount(
+    @Body() dto: ConfirmPaymentAmountDto,
+    @Req() request: Request,
+  ): Promise<PaymentAmountConfirmationResponse> {
+    const userId = (request as any).securityContext?.userId || 'anonymous';
+    const sessionId = (request as any).securityContext?.sessionId || 'unknown';
+
+    return await this.confirmationService.generateConfirmation(dto, userId, sessionId);
+  }
+
+  /**
+   * PASO 2: Procesar el pago con seguridad completa
+   * Incluye todas las validaciones de seguridad (CA1-CA6)
+   */
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(PaymentAttemptGuard) // CA4: Limitar a 3 intentos
   @ApiOperation({ 
-    summary     : 'Crear un nuevo pago',
-    description : 'Crea un nuevo pago con validaciones específicas según el proveedor seleccionado. Cada proveedor requiere campos específicos obligatorios.'
+    summary     : 'Procesar un nuevo pago (PASO 2)',
+    description : 
+      '⚠️ REQUISITOS DE SEGURIDAD:\n' +
+      '1. Debe obtener un token de confirmación primero (POST /pagos/confirm-amount)\n' +
+      '2. CVV es requerido para todas las transacciones (CA3)\n' +
+      '3. Los datos de tarjeta NO se almacenan (CA2)\n' +
+      '4. Máximo 3 intentos fallidos por sesión (CA4)\n' +
+      '5. Todas las transacciones son auditadas (CA5)\n' +
+      '6. Solo conexiones HTTPS/TLS 1.2+ (CA1)\n\n' +
+      'Crea un nuevo pago con validaciones específicas según el proveedor seleccionado.'
   })
+  @ApiSecurity('JWT')
   @ApiBody({
     type      : ProcessPaymentDto,
     examples  : {
       stripe: {
         summary     : 'Pago con Stripe',
-        description : 'Ejemplo de pago usando Stripe (requiere customerId)',
+        description : 'Ejemplo completo con CVV y token de confirmación',
         value       : {
-          amount      : 100,
-          currency    : 'USD',
-          provider    : 'stripe',
-          customerId  : 'cus_1234567890',
-          description : 'Pago con tarjeta de crédito',
-          metadata    : {
+          amount            : 100,
+          currency          : 'USD',
+          provider          : 'stripe',
+          cardSecurity      : {
+            cvv             : '123',
+            last4Digits     : '4242',
+            cardHolderName  : 'JOHN DOE'
+          },
+          confirmationToken : 'conf_1a2b3c4d5e6f',
+          customerId        : 'cus_1234567890',
+          description       : 'Pago con tarjeta de crédito',
+          metadata          : {
             idCarrito  : 'CART_123',
             idUsuario  : 'USER_456'
           }
@@ -37,14 +94,20 @@ export class PaymentController {
       },
       webpay: {
         summary     : 'Pago con Webpay',
-        description : 'Ejemplo de pago usando Webpay (requiere returnUrl)',
+        description : 'Ejemplo de pago usando Webpay con CVV',
         value       : {
-          amount      : 25000,
-          currency    : 'CLP',
-          provider    : 'webpay',
-          returnUrl   : 'https://mi-tienda.com/webpay/return',
-          description : 'Pago con transferencia bancaria',
-          metadata    : {
+          amount            : 25000,
+          currency          : 'CLP',
+          provider          : 'webpay',
+          cardSecurity      : {
+            cvv             : '456',
+            last4Digits     : '1234',
+            cardHolderName  : 'MARIA SILVA'
+          },
+          confirmationToken : 'conf_7g8h9i0j1k2l',
+          returnUrl         : 'https://mi-tienda.com/webpay/return',
+          description       : 'Pago con transferencia bancaria',
+          metadata          : {
             idCarrito  : 'CART_789',
             idUsuario  : 'USER_123'
           }
@@ -52,14 +115,18 @@ export class PaymentController {
       },
       paypal: {
         summary     : 'Pago con PayPal',
-        description : 'Ejemplo de pago usando PayPal (requiere cancelUrl)',
+        description : 'Ejemplo de pago usando PayPal',
         value       : {
-          amount      : 75.99,
-          currency    : 'USD',
-          provider    : 'paypal',
-          cancelUrl   : 'https://mi-tienda.com/paypal/cancel',
-          description : 'Pago con wallet digital',
-          metadata    : {
+          amount            : 75.99,
+          currency          : 'USD',
+          provider          : 'paypal',
+          cardSecurity      : {
+            cvv             : '789',
+          },
+          confirmationToken : 'conf_3m4n5o6p7q8r',
+          cancelUrl         : 'https://mi-tienda.com/paypal/cancel',
+          description       : 'Pago con wallet digital',
+          metadata          : {
             subscriptionId  : 'SUB_456'
           }
         }
@@ -68,7 +135,7 @@ export class PaymentController {
   })
   @ApiResponse({ 
     status      : 201, 
-    description : 'Pago creado exitosamente',
+    description : 'Pago procesado exitosamente con todas las validaciones de seguridad',
     schema      : {
       example    : {
         id        : 'pay_1699876543210_abc123',
@@ -78,7 +145,12 @@ export class PaymentController {
         status    : 'pending',
         metadata  : {
           idCarrito : 'CART_123',
-          idUsuario : 'USER_456'
+          idUsuario : 'USER_456',
+          securityChecks: {
+            cvvValidated: true,
+            amountConfirmed: true,
+            tlsVersion: 'TLSv1.3'
+          }
         },
         createdAt : '2024-09-09T21:30:00.000Z'
       }
@@ -86,12 +158,28 @@ export class PaymentController {
   })
   @ApiResponse({ 
     status      : 400, 
-    description : 'Datos de validación incorrectos',
+    description : 'Datos de validación incorrectos o CVV inválido',
     schema      : {
       example    : {
-        message     : ['customerId must be a string'],
+        message     : ['El código CVV es requerido para verificación de identidad'],
         error       : 'Bad Request',
         statusCode  : 400
+      }
+    }
+  })
+  @ApiResponse({ 
+    status      : 429, 
+    description : 'Límite de intentos excedido (máximo 3 intentos)',
+    schema      : {
+      example    : {
+        message     : 'Límite de intentos de pago excedido. Por favor, intente más tarde.',
+        error       : 'Too Many Requests',
+        statusCode  : 429,
+        details     : {
+          maxAttempts     : 3,
+          currentAttempts : 3,
+          retryAfter      : '1 hour'
+        }
       }
     }
   })
@@ -100,15 +188,83 @@ export class PaymentController {
     description : 'Error de validación de reglas de negocio',
     schema      : {
       example    : {
-        message     : 'Invalid payment method for selected provider',
+        message     : 'Token de confirmación inválido o expirado',
         error       : 'Unprocessable Entity',
         statusCode  : 422
       }
     }
   })
-  // POST api/pagos - Crear un nuevo pago
-  async createPayment(@Body() dto: ProcessPaymentDto) {
-    return await this.paymentService.processPayment(dto);
+  async createPayment(
+    @Body() dto: ProcessPaymentDto,
+    @Req() request: Request,
+  ) {
+    const securityContext = (request as any).securityContext || {};
+    const { userId, sessionId, ipAddress, userAgent } = securityContext;
+
+    try {
+      // CA3: Validar CVV
+      if (!dto.cardSecurity?.cvv) {
+        this.securityAuditService.logCvvValidationFailed(userId, sessionId, ipAddress);
+        throw new Error('CVV es requerido para verificación de identidad');
+      }
+
+      // Validar token de confirmación de monto
+      await this.confirmationService.validateConfirmation(
+        dto.confirmationToken,
+        dto.amount,
+        dto.currency || 'USD',
+        userId,
+        sessionId,
+      );
+
+      // Log de intento de pago (CA5)
+      this.securityAuditService.logPaymentAttempt(
+        userId,
+        sessionId,
+        ipAddress,
+        dto.amount,
+        dto.provider,
+      );
+
+      // Procesar pago (CA2: CVV no se pasa al servicio de aplicación, solo se valida)
+      const { cardSecurity, confirmationToken, ...paymentData } = dto;
+      const result = await this.paymentService.processPayment(paymentData as any);
+
+      // Log de éxito (CA5)
+      this.securityAuditService.logPaymentSuccess(
+        userId,
+        sessionId,
+        result.id,
+        dto.amount,
+        dto.provider,
+      );
+
+      // CA6: Agregar información de seguridad sin exponer datos sensibles
+      return {
+        ...result,
+        metadata: {
+          ...result.metadata,
+          securityChecks: {
+            cvvValidated: true,
+            amountConfirmed: true,
+            tlsVersion: 'TLSv1.2+',
+          },
+        },
+      };
+    } catch (error) {
+      // Log de fallo (CA5)
+      this.securityAuditService.logPaymentFailure(
+        userId,
+        sessionId,
+        ipAddress,
+        dto.amount,
+        dto.provider,
+        error.code || 'UNKNOWN',
+        error.message,
+      );
+
+      throw error;
+    }
   }
 
   @Get()
@@ -381,6 +537,7 @@ export class PaymentController {
     return await this.paymentService.getPaymentStatus(id);
   }
 }
+
 // TODO
 // GET reembolso de pago por id
 // GET todos los reembolsos

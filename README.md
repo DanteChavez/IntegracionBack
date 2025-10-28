@@ -237,7 +237,81 @@ Swagger proporciona:
 - Esquemas de request/response
 - Códigos de estado HTTP y ejemplos
 
+## 🔐 Seguridad y Cumplimiento
+
+### ⚠️ IMPORTANTE: Flujo Seguro de Pago
+
+Este sistema implementa **medidas de seguridad PCI-DSS nivel básico**. Para procesar un pago:
+
+1. **PASO 1:** Confirmar el monto
+   - Endpoint: `POST /api/pagos/confirm-amount`
+   - Genera un token de confirmación válido por 5 minutos
+   
+2. **PASO 2:** Procesar el pago
+   - Endpoint: `POST /api/pagos`
+   - Requiere: token de confirmación + CVV + datos del pago
+   - Máximo 3 intentos fallidos por sesión
+
+### Requisitos de Seguridad
+
+✅ **TLS 1.2+ Obligatorio** - Todas las conexiones deben usar HTTPS  
+✅ **CVV Requerido** - Código de seguridad obligatorio para verificación de identidad  
+✅ **No Almacenamiento** - Datos de tarjeta NUNCA se persisten en base de datos  
+✅ **Rate Limiting** - Máximo 3 intentos fallidos por sesión (bloqueo temporal 1 hora)  
+✅ **Auditoría Completa** - Todos los eventos son registrados en logs de seguridad  
+✅ **Enmascaramiento** - Datos sensibles enmascarados en logs y respuestas  
+
+### Headers de Seguridad HTTP
+
+El sistema configura automáticamente:
+- `Strict-Transport-Security`: Forzar HTTPS
+- `X-Content-Type-Options`: Prevenir MIME sniffing
+- `X-Frame-Options`: Prevenir clickjacking
+- `Content-Security-Policy`: Política de contenido seguro
+- `Cache-Control: no-store`: No cachear datos sensibles
+
+### Logs de Auditoría
+
+Todos los eventos de seguridad se registran en:
+```
+logs/
+  ├── security-audit.log       # Todos los eventos de seguridad
+  └── security-error.log        # Solo errores y eventos críticos
+```
+
+Eventos auditados:
+- Intentos de pago (éxito/fallo)
+- Validaciones CVV
+- Confirmaciones de monto
+- Límites de intentos excedidos
+- Actividad sospechosa detectada
+
+**📖 Ver documentación completa de seguridad:** [SECURITY.md](./SECURITY.md)
+
 ## 🌐 API Endpoints
+
+### 🔒 Seguridad (Confirmación de Monto)
+
+- **POST /api/pagos/confirm-amount**: Confirmar monto antes de pagar (PASO 1)
+  ```json
+  {
+    "amount": 100.50,
+    "currency": "USD",
+    "provider": "stripe",
+    "description": "Compra de producto XYZ"
+  }
+  ```
+  Respuesta:
+  ```json
+  {
+    "confirmationToken": "conf_1a2b3c4d5e6f",
+    "confirmedAmount": 100.50,
+    "confirmedCurrency": "USD",
+    "formattedAmount": "$100.50 USD",
+    "expiresAt": "2025-10-28T12:35:00Z",
+    "message": "El monto ha sido verificado y confirmado. Proceda con el pago."
+  }
+  ```
 
 ### Autenticación
 
@@ -280,21 +354,64 @@ Swagger proporciona:
 - **PATCH /api/users/:id**: Actualizar un usuario (requiere token JWT)
 - **DELETE /api/users/:id**: Eliminar un usuario (requiere token JWT)
 
-### Pagos
+### Pagos (PASO 2: Procesamiento Seguro)
 
-- **POST /api/pagos/process**: Procesar un nuevo pago
+⚠️ **IMPORTANTE:** Primero debe obtener un token de confirmación usando `/api/pagos/confirm-amount`
+
+- **POST /api/pagos**: Procesar un nuevo pago con seguridad completa
+  
+  **Headers requeridos:**
+  ```
+  X-Session-ID: sess_unique_id
+  X-User-ID: user_123
+  Authorization: Bearer <jwt_token>
+  ```
+  
+  **Body:**
   ```json
   {
-    "amount": 10000,
-    "currency": "CLP",
-    "paymentMethod": "stripe",
-    "description": "Compra de producto",
+    "amount": 100.50,
+    "currency": "USD",
+    "provider": "stripe",
+    "cardSecurity": {
+      "cvv": "123",
+      "last4Digits": "4242",
+      "cardHolderName": "JOHN DOE"
+    },
+    "confirmationToken": "conf_1a2b3c4d5e6f",
+    "customerId": "cus_1234567890",
+    "description": "Compra de producto XYZ",
     "metadata": {
-      "orderId": "12345",
+      "orderId": "ORDER_789",
       "customerId": "user123"
     }
   }
   ```
+  
+  **Respuesta exitosa:**
+  ```json
+  {
+    "id": "pay_1699876543210_abc123",
+    "amount": 100.50,
+    "currency": "USD",
+    "provider": "stripe",
+    "status": "pending",
+    "metadata": {
+      "orderId": "ORDER_789",
+      "securityChecks": {
+        "cvvValidated": true,
+        "amountConfirmed": true,
+        "tlsVersion": "TLSv1.3"
+      }
+    },
+    "createdAt": "2025-10-28T12:30:00.000Z"
+  }
+  ```
+  
+  **Errores posibles:**
+  - `400 Bad Request`: CVV inválido o datos incorrectos
+  - `422 Unprocessable Entity`: Token de confirmación inválido/expirado
+  - `429 Too Many Requests`: Límite de 3 intentos excedido (bloqueo 1 hora)
 
 - **GET /api/pagos**: Obtener todos los pagos (paginado)
   ```
@@ -306,7 +423,7 @@ Swagger proporciona:
 - **POST /api/pagos/:id/refund**: Solicitar reembolso de un pago
   ```json
   {
-    "amount": 10000,
+    "amount": 100.50,
     "reason": "Producto defectuoso"
   }
   ```
