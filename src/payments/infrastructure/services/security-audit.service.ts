@@ -320,6 +320,11 @@ export class SecurityAuditService {
   }
 
   private handleSuspiciousActivity(data: SecurityLogData): void {
+    // Evitar recursión infinita: no registrar actividad sospechosa si ya es un evento de actividad sospechosa
+    if (data.eventType === SecurityEventType.SUSPICIOUS_ACTIVITY) {
+      return;
+    }
+    
     this.logSecurityEvent({
       eventType: SecurityEventType.SUSPICIOUS_ACTIVITY,
       userId: data.userId,

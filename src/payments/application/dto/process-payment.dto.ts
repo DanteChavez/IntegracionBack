@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, IsString, Min, ValidateIf, IsUrl, IsObject, Matches, Length, IsNotEmpty, Max, IsInt } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString, Min, ValidateIf, IsUrl, IsObject, Matches, Length, IsNotEmpty, Max, IsInt, IsNumberString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaymentProvider } from '../../domain/entities/payment.entity';
 import { Transform } from 'class-transformer';
@@ -39,8 +39,8 @@ export class CardSecurityData {
   })
   @IsNotEmpty({ message: 'El código CVV es requerido para verificación de identidad' })
   @IsString()
+  @IsNumberString({}, { message: 'El CVV debe contener solo números' })
   @Length(3, 4, { message: 'El CVV debe tener 3 o 4 dígitos' })
-  @Matches(/^[0-9]{3,4}$/, { message: 'El CVV debe contener solo números' })
   cvv: string;
 
   @ApiPropertyOptional({
@@ -100,11 +100,13 @@ export class ProcessPaymentDto {
   amount: number;
 
   @ApiPropertyOptional({
-    description : 'Moneda del pago (por defecto USD)',
+    description : 'Moneda del pago (código ISO 4217 de 3 letras)',
     example     : 'USD',
-    default     : 'USD'
+    default     : 'USD',
+    pattern     : '^[A-Z]{3}$'
   })
   @IsString()
+  @Matches(/^[A-Z]{3}$/, { message: 'La moneda debe ser un código ISO 4217 válido de 3 letras mayúsculas (ej: USD, EUR, CLP)' })
   @IsOptional()
   currency?: string;
 

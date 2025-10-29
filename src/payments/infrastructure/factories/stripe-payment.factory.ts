@@ -1,21 +1,30 @@
+import { Injectable } from '@nestjs/common';
 import { PaymentProcessorFactory }  from './payment-processor.factory';
 import { PaymentProcessor }         from './payment-processor.interface';
 import { PaymentValidator }         from './payment-validator.interface';
 import { PaymentNotifier }          from './payment-notifier.interface';
+import { StripePaymentProcessor }   from '../processors/stripe-payment.processor';
 
+@Injectable()
 export class StripePaymentFactory extends PaymentProcessorFactory {
+  constructor(private readonly stripeProcessor: StripePaymentProcessor) {
+    super();
+  }
+
   createProcessor(): PaymentProcessor {
-    // TODO: Retornar instancia de StripePaymentProcessor
-    throw new Error('Method not implemented.');
+    return this.stripeProcessor;
   }
 
   createValidator(): PaymentValidator {
-    // TODO: Retornar instancia de StripePaymentValidator
-    throw new Error('Method not implemented.');
+    // TODO: Implementar validador específico de Stripe si es necesario
+    // Por ahora, la validación se hace en el application service
+    return null;
   }
 
   createNotifier(): PaymentNotifier {
-    // TODO: Retornar instancia de StripePaymentNotifier
-    throw new Error('Method not implemented.');
+    // TODO: Implementar notificador específico de Stripe si es necesario
+    // Por ahora, las notificaciones se manejan vía webhooks
+    return null;
   }
 }
+

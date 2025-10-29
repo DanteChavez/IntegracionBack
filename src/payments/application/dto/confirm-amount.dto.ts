@@ -1,4 +1,4 @@
-import { IsNumber, IsString, IsEnum, Min, IsOptional, IsObject } from 'class-validator';
+import { IsNumber, IsString, IsEnum, Min, IsOptional, IsObject, Matches } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaymentProvider } from '../../domain/entities/payment.entity';
 
@@ -17,10 +17,12 @@ export class ConfirmPaymentAmountDto {
   amount: number;
 
   @ApiProperty({
-    description: 'Moneda del pago',
+    description: 'Moneda del pago (código ISO 4217 de 3 letras)',
     example: 'USD',
+    pattern: '^[A-Z]{3}$',
   })
   @IsString()
+  @Matches(/^[A-Z]{3}$/, { message: 'La moneda debe ser un código ISO 4217 válido de 3 letras mayúsculas (ej: USD, EUR, CLP)' })
   currency: string;
 
   @ApiProperty({

@@ -246,7 +246,7 @@ export class PaymentController {
           idCarrito : 'CART_123',
           idUsuario : 'USER_456',
           securityChecks: {
-            cvvValidated: true,
+            cardSecurityValidated: true,
             amountConfirmed: true,
             tlsVersion: 'TLSv1.3'
           }
@@ -340,14 +340,16 @@ export class PaymentController {
 
       // CA6: Agregar información de seguridad sin exponer datos sensibles
       return {
-        ...result,
+        id: result.id,
+        amount: result.amount,
+        currency: result.currency,
+        provider: result.provider,
+        status: result.status, // Usar getter explícitamente
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
         metadata: {
           ...result.metadata,
-          securityChecks: {
-            cvvValidated: true,
-            amountConfirmed: true,
-            tlsVersion: 'TLSv1.2+',
-          },
+          securityChecks: 'PASSED', // Todas las validaciones pasaron
         },
       };
     } catch (error) {

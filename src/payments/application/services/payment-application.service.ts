@@ -48,9 +48,9 @@ export class PaymentApplicationService {
       
       // Simular procesamiento exitoso
       payment.updateStatus(PaymentStatus.PROCESSING);
-      setTimeout(() => {
-        payment.updateStatus(PaymentStatus.COMPLETED);
-      }, 1000);
+      
+      // En modo mock, marcar como completado inmediatamente
+      payment.updateStatus(PaymentStatus.COMPLETED);
       
       return payment;
     } catch (error) {

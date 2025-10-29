@@ -15,6 +15,19 @@ import {
   SecurityContextMiddleware,
 } from './infrastructure/middleware/security.middleware';
 
+// Payment Processors
+import { StripePaymentProcessor }  from './infrastructure/processors/stripe-payment.processor';
+import { PayPalPaymentProcessor }  from './infrastructure/processors/paypal-payment.processor';
+import { WebpayPaymentProcessor }  from './infrastructure/processors/webpay-payment.processor';
+
+// Payment Factories
+import { StripePaymentFactory }    from './infrastructure/factories/stripe-payment.factory';
+import { PayPalPaymentFactory }    from './infrastructure/factories/paypal-payment.factory';
+import { WebpayPaymentFactory }    from './infrastructure/factories/webpay-payment.factory';
+
+// Payment Domain
+import { PaymentProvider }         from './domain/entities/payment.entity';
+
 @Module({
   imports: [
     ConfigModule,
@@ -44,23 +57,38 @@ import {
     // CA4: Guards de seguridad
     PaymentAttemptGuard,
     
-    // TODO: Registrar factories específicas
-    // {
-    //   provide: 'STRIPE_FACTORY',
-    //   useClass: StripePaymentFactory,
-    // },
-    // {
-    //   provide: 'PAYPAL_FACTORY',
-    //   useClass: PayPalPaymentFactory,
-    // },
-    // TODO: Configurar registro dinámico de factories
-    // {
-    //   provide: 'PAYMENT_FACTORIES_SETUP',
-    //   useFactory: (registry: PaymentFactoryRegistry) => {
-    //     // Registrar factories disponibles según configuración
-    //   },
-    //   inject: [PaymentFactoryRegistry],
-    // },
+    // Payment Processors
+    StripePaymentProcessor,
+    PayPalPaymentProcessor,
+    WebpayPaymentProcessor,
+    
+    // Payment Factories
+    StripePaymentFactory,
+    PayPalPaymentFactory,
+    WebpayPaymentFactory,
+    
+    // Configurar registro dinámico de factories al inicializar
+    {
+      provide: 'PAYMENT_FACTORIES_SETUP',
+      useFactory: (
+        registry: PaymentFactoryRegistry,
+        stripeFactory: StripePaymentFactory,
+        paypalFactory: PayPalPaymentFactory,
+        webpayFactory: WebpayPaymentFactory,
+      ) => {
+        // Registrar todas las factories disponibles
+        registry.register(PaymentProvider.STRIPE, stripeFactory);
+        registry.register(PaymentProvider.PAYPAL, paypalFactory);
+        registry.register(PaymentProvider.WEBPAY, webpayFactory);
+        return registry;
+      },
+      inject: [
+        PaymentFactoryRegistry,
+        StripePaymentFactory,
+        PayPalPaymentFactory,
+        WebpayPaymentFactory,
+      ],
+    },
   ],
   exports: [
     PaymentApplicationService,

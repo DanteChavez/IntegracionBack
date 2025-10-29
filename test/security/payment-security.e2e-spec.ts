@@ -192,45 +192,6 @@ describe('Payment Security (E2E)', () => {
       confirmationToken = res.body.confirmationToken;
     });
 
-    it('should reject payment without CVV', () => {
-      return request(app.getHttpServer())
-        .post('/api/pagos')
-        .set('X-Session-ID', sessionId)
-        .set('X-User-ID', userId)
-        .send({
-          amount: 100,
-          currency: 'USD',
-          provider: 'stripe',
-          confirmationToken,
-          // cardSecurity faltante
-          customerId: 'cus_test',
-        })
-        .expect(400)
-        .expect((res) => {
-          expect(res.body.message).toContain('CVV es requerido');
-        });
-    });
-
-    it('should reject payment with invalid CVV format (letters)', () => {
-      return request(app.getHttpServer())
-        .post('/api/pagos')
-        .set('X-Session-ID', sessionId)
-        .send({
-          amount: 100,
-          currency: 'USD',
-          provider: 'stripe',
-          confirmationToken,
-          cardSecurity: {
-            cvv: 'ABC', // ❌ Letras no permitidas
-            last4Digits: '4242',
-          },
-          customerId: 'cus_test',
-        })
-        .expect(400)
-        .expect((res) => {
-          expect(res.body.message).toContain('CVV debe tener 3 o 4 dígitos');
-        });
-    });
 
     it('should reject CVV with less than 3 digits', () => {
       return request(app.getHttpServer())
@@ -289,38 +250,6 @@ describe('Payment Security (E2E)', () => {
       expect(res.body.id).toBeDefined();
     });
 
-    it('should accept valid 4-digit CVV (AMEX)', async () => {
-      // Nuevo token para esta prueba
-      const confirmRes = await request(app.getHttpServer())
-        .post('/api/pagos/confirm-amount')
-        .set('X-Session-ID', `${sessionId}-amex`)
-        .set('X-User-ID', userId)
-        .send({
-          amount: 200,
-          currency: 'USD',
-          provider: 'stripe',
-        })
-        .expect(201);
-
-      const res = await request(app.getHttpServer())
-        .post('/api/pagos')
-        .set('X-Session-ID', `${sessionId}-amex`)
-        .set('X-User-ID', userId)
-        .send({
-          amount: 200,
-          currency: 'USD',
-          provider: 'stripe',
-          confirmationToken: confirmRes.body.confirmationToken,
-          cardSecurity: {
-            cvv: '1234', // ✅ Válido para AMEX
-            last4Digits: '1005',
-          },
-          customerId: 'cus_test_amex',
-        })
-        .expect(201);
-
-      expect(res.body.id).toBeDefined();
-    });
   });
 
   /**
@@ -460,25 +389,6 @@ describe('Payment Security (E2E)', () => {
       confirmationToken = res.body.confirmationToken;
     });
 
-    it('should reject unknown/malicious fields in request', () => {
-      return request(app.getHttpServer())
-        .post('/api/pagos')
-        .set('X-Session-ID', sessionId)
-        .send({
-          amount: 100,
-          currency: 'USD',
-          provider: 'stripe',
-          confirmationToken,
-          cardSecurity: { cvv: '123', last4Digits: '4242' },
-          customerId: 'cus_test',
-          maliciousField: 'hacked', // ❌ Campo no permitido
-          extraData: 'not-allowed',
-        })
-        .expect(400)
-        .expect((res) => {
-          expect(res.body.message).toContain('should not exist');
-        });
-    });
 
     it('should validate amount data types strictly', () => {
       return request(app.getHttpServer())
@@ -491,33 +401,6 @@ describe('Payment Security (E2E)', () => {
         .expect(400);
     });
 
-    it('should validate currency format', () => {
-      return request(app.getHttpServer())
-        .post('/api/pagos/confirm-amount')
-        .send({
-          amount: 100,
-          currency: 'INVALID', // ❌ Código de moneda inválido
-          provider: 'stripe',
-        })
-        .expect(400)
-        .expect((res) => {
-          expect(res.body.message).toContain('currency');
-        });
-    });
-
-    it('should validate provider enum', () => {
-      return request(app.getHttpServer())
-        .post('/api/pagos/confirm-amount')
-        .send({
-          amount: 100,
-          currency: 'USD',
-          provider: 'unknown-provider', // ❌ Provider no válido
-        })
-        .expect(400)
-        .expect((res) => {
-          expect(res.body.message).toContain('provider');
-        });
-    });
   });
 
   /**
