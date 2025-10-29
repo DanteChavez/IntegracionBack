@@ -90,10 +90,30 @@ async function bootstrap() {
     .build();
     
   const document = SwaggerModule.createDocument(app, config);
+  
+  // Endpoint para descargar Swagger en formato JSON
+  app.use('/api/docs-json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="swagger.json"');
+    res.send(document);
+  });
+  
+  // Endpoint para descargar Swagger en formato YAML
+  app.use('/api/docs-yaml', (req, res) => {
+    const yaml = require('js-yaml');
+    const yamlDocument = yaml.dump(document);
+    res.setHeader('Content-Type', 'application/x-yaml');
+    res.setHeader('Content-Disposition', 'attachment; filename="swagger.yaml"');
+    res.send(yamlDocument);
+  });
+  
   SwaggerModule.setup('api/docs', app, document, {
     customSiteTitle : 'Payment API Documentation',
     customfavIcon   : '/favicon.ico',
     customCss       : '.swagger-ui .topbar { display: none }',
+    swaggerOptions: {
+      persistAuthorization: true, // Mantener token JWT entre recargas
+    },
   });
   
   // Configurar validaciones globales con seguridad mejorada
@@ -110,7 +130,9 @@ async function bootstrap() {
   
   console.log(`\n🔒 Payment API running securely on: https://localhost:${port}/api`);
   console.log(`📚 Swagger Documentation: https://localhost:${port}/api/docs`);
-  console.log(`🛡️  Security: TLS 1.2+, PCI-DSS Basic Compliance`);
+  console.log(`� Download Swagger JSON: https://localhost:${port}/api/docs-json`);
+  console.log(`📥 Download Swagger YAML: https://localhost:${port}/api/docs-yaml`);
+  console.log(`�🛡️  Security: TLS 1.2+, PCI-DSS Basic Compliance`);
   console.log(`⚠️  Environment: ${process.env.NODE_ENV || 'development'}\n`);
 }
 bootstrap();

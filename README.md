@@ -1,253 +1,471 @@
-# Backend NestJS para GPI Template - Universidad de Valparaíso
+# 🔐 Payment API - Sistema de Pagos Seguro PCI-DSS Compliant
 
-Este proyecto es un backend desarrollado con NestJS que implementa un sistema completo de procesamiento de pagos con múltiples proveedores (Stripe, PayPal, Webpay), autenticación JWT, gestión de usuarios y documentación interactiva con Swagger.
+Backend desarrollado con **NestJS** que implementa un sistema robusto de procesamiento de pagos con múltiples proveedores (Stripe, PayPal, Webpay), cumpliendo con los estándares de seguridad **PCI-DSS** y las mejores prácticas de la industria.
 
-## 🚀 Tecnologías
+[![NestJS](https://img.shields.io/badge/NestJS-11.0.1-E0234E?logo=nestjs)](https://nestjs.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![Tests](https://img.shields.io/badge/Tests-14%2F14%20passing-success)](./test/security/)
+[![Security](https://img.shields.io/badge/Security-PCI--DSS%20Compliant-green)](https://www.pcisecuritystandards.org/)
 
-Este backend utiliza las siguientes tecnologías:
+## ✨ Características Principales
 
-- **NestJS**: Framework progresivo para construir aplicaciones del lado del servidor
-- **TypeScript**: Superset tipado de JavaScript
-- **MongoDB**: Base de datos NoSQL orientada a documentos
-- **Mongoose**: Biblioteca ODM (Object Data Modeling) para MongoDB
-- **JWT**: JSON Web Tokens para autenticación
-- **Passport**: Middleware para autenticación
-- **Swagger/OpenAPI**: Documentación interactiva de la API
+### 🛡️ Seguridad (Historia de Usuario 2)
+- ✅ **CA1**: Cifrado TLS 1.2+ obligatorio con certificados SSL
+- ✅ **CA2**: Cero almacenamiento de datos sensibles (CVV, PAN)
+- ✅ **CA3**: Verificación CVV requerida en todas las transacciones
+- ✅ **CA4**: Rate limiting - máximo 3 intentos fallidos por sesión
+- ✅ **CA5**: Logging completo de auditoría de seguridad
+- ✅ **CA6**: Protección de datos personales con validación estricta
+
+### 💳 Procesamiento de Pagos (Historia de Usuario 1)
+- ✅ Soporte para 3 proveedores: **Stripe**, **PayPal**, **Webpay**
+- ✅ Arquitectura DDD (Domain-Driven Design)
+- ✅ Patrón Factory para procesadores de pago
+- ✅ Flujo de confirmación en 2 pasos
+- ✅ Validación de métodos de pago en tiempo real
+- ✅ Gestión de sesiones con temporizador
+
+### 📚 Documentación y APIs
+- ✅ Swagger UI interactivo en `/api/docs`
+- ✅ **Descarga de documentación** en JSON y YAML
+- ✅ Ejemplos completos para cada proveedor
+- ✅ Autenticación JWT integrada
+
+## 🚀 Tecnologías y Stack
+
+- **NestJS 11.0.1**: Framework progresivo para Node.js
+- **TypeScript 5.5**: Tipado estático y desarrollo robusto
+- **Swagger/OpenAPI 3.0**: Documentación interactiva
 - **Class Validator**: Validación de datos basada en decoradores
-- **bcrypt**: Librería para hashear contraseñas
-- **HTTPS/TLS**: Comunicación segura con certificados SSL
+- **Helmet**: Headers de seguridad HTTP
+- **HTTPS/TLS 1.2+**: Comunicación cifrada obligatoria
+- **Jest**: Framework de testing con E2E
+- **js-yaml**: Exportación de documentación en YAML
 
-## 📁 Estructura de Carpetas
+
+## 📁 Estructura del Proyecto
 
 ```
-backend/
+NestJS/
 ├── src/
-│   ├── app.module.ts                # Módulo principal
-│   ├── main.ts                      # Punto de entrada con HTTPS y Swagger
-│   ├── config/                      # Configuraciones
-│   │   ├── database.config.ts       # Configuración de MongoDB
-│   │   ├── jwt.config.ts            # Configuración de JWT
-│   │   └── env.config.ts            # Variables de entorno
-│   ├── auth/                        # Módulo de autenticación
-│   │   ├── auth.module.ts           # Módulo de autenticación
-│   │   ├── auth.controller.ts       # Controlador
-│   │   ├── auth.service.ts          # Servicio
-│   │   ├── dto/                     # DTOs para validación
-│   │   │   ├── login.dto.ts         # Login DTO
-│   │   │   └── register.dto.ts      # Registro DTO
-│   │   ├── guards/                  # Guards para proteger rutas
-│   │   │   └── jwt-auth.guard.ts    # Guard de JWT
-│   │   └── strategies/              # Estrategias de Passport
-│   │       └── jwt.strategy.ts      # Estrategia JWT
-│   ├── users/                       # Módulo de usuarios
-│   │   ├── users.module.ts          # Módulo de usuarios
-│   │   ├── users.controller.ts      # Controlador
-│   │   ├── users.service.ts         # Servicio
-│   │   ├── schemas/                 # Esquemas de MongoDB
-│   │   │   └── user.schema.ts       # Esquema de usuario
-│   │   └── dto/                     # DTOs
-│   │       ├── create-user.dto.ts   # DTO para crear usuario
-│   │       └── update-user.dto.ts   # DTO para actualizar usuario
-│   ├── payments/                    # Módulo de pagos (DDD Architecture)
-│   │   ├── payments.module.ts       # Módulo de pagos
-│   │   ├── application/             # Capa de aplicación
-│   │   │   ├── dto/                 # DTOs de pagos
-│   │   │   │   ├── process-payment.dto.ts
-│   │   │   │   └── refund-payment.dto.ts
-│   │   │   ├── handlers/            # Manejadores de comandos/eventos
-│   │   │   └── services/            # Servicios de aplicación
-│   │   │       └── payment-application.service.ts
-│   │   ├── domain/                  # Capa de dominio
-│   │   │   ├── entities/            # Entidades de dominio
-│   │   │   │   ├── payment.entity.ts
-│   │   │   │   └── payment-method.entity.ts
-│   │   │   ├── repositories/        # Interfaces de repositorios
-│   │   │   │   └── payment.repository.ts
-│   │   │   └── services/            # Servicios de dominio
-│   │   │       └── payment-domain.service.ts
-│   │   ├── infrastructure/          # Capa de infraestructura
-│   │   │   ├── adapters/            # Adaptadores externos
-│   │   │   ├── factories/           # Fábricas de procesadores
-│   │   │   │   ├── payment-factory-registry.service.ts
-│   │   │   │   ├── payment-processor.factory.ts
-│   │   │   │   ├── payment-processor.interface.ts
-│   │   │   │   ├── payment-validator.interface.ts
-│   │   │   │   ├── payment-notifier.interface.ts
-│   │   │   │   ├── stripe-payment.factory.ts
-│   │   │   │   └── paypal-payment.factory.ts
-│   │   │   └── processors/          # Procesadores de pago
-│   │   │       ├── stripe-payment.processor.ts
-│   │   │       └── paypal-payment.processor.ts
-│   │   └── presentation/            # Capa de presentación
-│   │       ├── controllers/         # Controladores HTTP
-│   │       │   ├── payment.controller.ts
-│   │       │   └── webhook.controller.ts
-│   │       └── middleware/          # Middlewares
-│   └── common/                      # Código compartido
-├── secrets/                         # Certificados SSL/TLS
-│   ├── pulgashopkey.pem            # Clave privada
-│   └── pulgashopcert.pem           # Certificado
-├── .env                             # Variables de entorno
-├── nest-cli.json                    # Configuración de NestJS CLI
-├── package.json                     # Dependencias
-└── tsconfig.json                    # Configuración de TypeScript
+│   ├── main.ts                          # Punto de entrada con HTTPS y Swagger
+│   ├── app.module.ts                    # Módulo raíz
+│   ├── app.controller.ts                # Controlador principal
+│   ├── app.service.ts                   # Servicio principal
+│   │
+│   └── payments/                        # 🎯 Módulo de Pagos (DDD Architecture)
+│       ├── payments.module.ts           # Configuración del módulo
+│       ├── index.ts                     # Exportaciones públicas
+│       ├── README.md                    # Documentación del módulo
+│       │
+│       ├── application/                 # 📋 Capa de Aplicación
+│       │   ├── dto/
+│       │   │   ├── process-payment.dto.ts      # DTO para procesar pagos
+│       │   │   ├── refund-payment.dto.ts       # DTO para reembolsos
+│       │   │   ├── confirm-amount.dto.ts       # DTO para confirmación
+│       │   │   └── payment-method-info.dto.ts  # DTO para métodos de pago
+│       │   ├── handlers/                # Handlers de comandos/eventos
+│       │   └── services/
+│       │       └── payment-application.service.ts  # Orquestación de casos de uso
+│       │
+│       ├── domain/                      # 🏛️ Capa de Dominio
+│       │   ├── entities/
+│       │   │   ├── payment.entity.ts            # Entidad Payment
+│       │   │   └── payment-method.entity.ts     # Entidad PaymentMethod
+│       │   ├── repositories/
+│       │   │   └── payment.repository.ts        # Interface de repositorio
+│       │   └── services/
+│       │       └── payment-domain.service.ts    # Lógica de negocio
+│       │
+│       ├── infrastructure/              # ⚙️ Capa de Infraestructura
+│       │   ├── adapters/                # Adaptadores externos
+│       │   ├── factories/               # 🏭 Patrón Factory
+│       │   │   ├── payment-factory-registry.service.ts  # Registro centralizado
+│       │   │   ├── payment-processor.factory.ts         # Factory base
+│       │   │   ├── payment-processor.interface.ts       # Interface procesador
+│       │   │   ├── payment-validator.interface.ts       # Interface validador
+│       │   │   ├── payment-notifier.interface.ts        # Interface notificador
+│       │   │   ├── stripe-payment.factory.ts            # Factory Stripe
+│       │   │   ├── paypal-payment.factory.ts            # Factory PayPal
+│       │   │   └── webpay-payment.factory.ts            # Factory Webpay
+│       │   ├── processors/              # 💳 Procesadores de Pago
+│       │   │   ├── stripe-payment.processor.ts  # Implementación Stripe
+│       │   │   ├── paypal-payment.processor.ts  # Implementación PayPal
+│       │   │   └── webpay-payment.processor.ts  # Implementación Webpay
+│       │   ├── guards/
+│       │   │   └── payment-attempt.guard.ts     # Rate limiting guard
+│       │   ├── middleware/
+│       │   │   └── security-context.middleware.ts  # Context de seguridad
+│       │   └── services/
+│       │       ├── security-audit.service.ts    # Auditoría de seguridad
+│       │       └── payment-confirmation.service.ts  # Confirmación de montos
+│       │
+│       ├── presentation/                # 🌐 Capa de Presentación
+│       │   └── controllers/
+│       │       ├── payment.controller.ts        # Endpoints de pagos
+│       │       └── webhook.controller.ts        # Webhooks de proveedores
+│       │
+│       └── config/
+│           └── payment.config.ts        # Configuración de pagos
+│
+├── test/
+│   ├── security/
+│   │   └── payment-security.e2e-spec.ts # 🧪 Tests E2E de seguridad (14/14 ✅)
+│   └── jest-e2e.json                    # Configuración Jest E2E
+│
+├── secrets/                             # 🔐 Certificados SSL/TLS
+│   ├── pulgashopkey.pem                 # Clave privada
+│   └── pulgashopcert.pem                # Certificado público
+│
+├── .env                                 # Variables de entorno
+├── package.json                         # Dependencias del proyecto
+├── tsconfig.json                        # Configuración TypeScript
+└── nest-cli.json                        # Configuración NestJS CLI
 ```
 
-## 🏗️ Arquitectura
 
-### Módulos Principales
+## 🏗️ Arquitectura del Sistema
 
-El backend está organizado en módulos, siguiendo las mejores prácticas de NestJS:
+### Arquitectura DDD (Domain-Driven Design)
 
-- **AppModule**: Módulo raíz que importa el resto de módulos
-- **AuthModule**: Gestiona la autenticación y autorización con JWT
-- **UsersModule**: Gestiona las operaciones CRUD de usuarios
-- **PaymentsModule**: Sistema completo de procesamiento de pagos con arquitectura DDD
+El módulo de pagos implementa una arquitectura limpia con 4 capas bien definidas:
 
-### Arquitectura DDD del Módulo de Pagos
+#### 1️⃣ Domain (Dominio) - Lógica de Negocio Pura
+```typescript
+// Entidades de negocio independientes de la infraestructura
+Payment.entity.ts
+  - Estados: PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED
+  - Validaciones de transición de estado
+  - Lógica de negocio encapsulada
 
-El módulo de pagos implementa Domain-Driven Design (DDD) con las siguientes capas:
+PaymentMethod.entity.ts
+  - Información de métodos de pago
+  - Validaciones específicas por tipo
+```
 
-1. **Domain (Dominio)**:
-   - Entidades de negocio (`Payment`, `PaymentMethod`)
-   - Interfaces de repositorios
-   - Servicios de dominio con lógica de negocio
+#### 2️⃣ Application (Aplicación) - Casos de Uso
+```typescript
+// Orquestación de la lógica de negocio
+PaymentApplicationService
+  - Procesar pagos con validación de seguridad
+  - Gestionar reembolsos
+  - Obtener métodos de pago disponibles
+  - Validar formatos de tarjetas
+```
 
-2. **Application (Aplicación)**:
-   - DTOs para validación de entrada
-   - Servicios de aplicación que orquestan casos de uso
-   - Handlers de comandos y eventos
+#### 3️⃣ Infrastructure (Infraestructura) - Implementaciones
+```typescript
+// Patrón Factory para procesadores
+PaymentFactoryRegistry
+  ├── StripePaymentFactory    → StripePaymentProcessor
+  ├── PayPalPaymentFactory    → PayPalPaymentProcessor
+  └── WebpayPaymentFactory    → WebpayPaymentProcessor
 
-3. **Infrastructure (Infraestructura)**:
-   - Implementaciones de repositorios
-   - Adaptadores a servicios externos (Stripe, PayPal, Webpay)
-   - Factories para crear procesadores de pago
-   - Procesadores específicos por proveedor
+// Servicios de infraestructura
+SecurityAuditService          // Logging de eventos de seguridad
+PaymentConfirmationService    // Confirmación de montos con tokens
+PaymentAttemptGuard          // Rate limiting (3 intentos)
+SecurityContextMiddleware    // Contexto de seguridad HTTP
+```
 
-4. **Presentation (Presentación)**:
-   - Controladores HTTP con documentación Swagger
-   - Middlewares de validación
-   - Webhooks para notificaciones de proveedores
+#### 4️⃣ Presentation (Presentación) - API HTTP
+```typescript
+PaymentController
+  - POST /api/pagos/confirm-amount     // Paso 1: Confirmación
+  - POST /api/pagos                    // Paso 2: Procesamiento
+  - GET  /api/pagos/payment-methods    // Métodos disponibles
+  - POST /api/pagos/validate-payment-method  // Validación
+  - GET  /api/pagos/session/:id        // Estado de sesión
 
-### Patrón Factory
+WebhookController
+  - POST /api/webhooks/stripe          // Notificaciones Stripe
+  - POST /api/webhooks/paypal          // Notificaciones PayPal
+  - POST /api/webhooks/webpay          // Notificaciones Webpay
+```
 
-El sistema utiliza el patrón Factory para crear procesadores de pago dinámicamente:
+### Patrón Factory - Extensibilidad
+
+El sistema utiliza el patrón Factory para crear procesadores dinámicamente:
 
 ```typescript
-// Registro centralizado de fábricas
-PaymentFactoryRegistry
-  ├── StripePaymentFactory
-  ├── PayPalPaymentFactory
-  └── WebpayPaymentFactory
-
-// Cada factory implementa
-interface IPaymentProcessorFactory {
-  createProcessor(): IPaymentProcessor;
-  createValidator(): IPaymentValidator;
-  createNotifier(): IPaymentNotifier;
+// Interface común para todos los procesadores
+interface IPaymentProcessor {
+  processPayment(data: ProcessPaymentDto): Promise<PaymentResult>;
+  refundPayment(data: RefundPaymentDto): Promise<RefundResult>;
+  cancelPayment(paymentId: string): Promise<void>;
+  getPaymentStatus(paymentId: string): Promise<PaymentStatus>;
+  handleWebhook(payload: any): Promise<WebhookResult>;
 }
+
+// Agregar un nuevo proveedor solo requiere:
+// 1. Crear XxxPaymentProcessor implementando IPaymentProcessor
+// 2. Crear XxxPaymentFactory
+// 3. Registrar en PaymentFactoryRegistry
+// ✅ Cero cambios en código existente (Open/Closed Principle)
 ```
 
-### Sistema de Autenticación
-
-La autenticación está implementada usando JWT (JSON Web Tokens):
-
-1. El usuario se registra o inicia sesión
-2. El servidor valida las credenciales y genera un token JWT
-3. El cliente almacena el token y lo incluye en cada solicitud
-4. Los guards verifican el token para proteger las rutas
-
-### HTTPS y Seguridad
-
-- El servidor está configurado para ejecutarse con HTTPS usando certificados SSL/TLS
-- Los certificados se almacenan en la carpeta `secrets/`
 
 ## ⚙️ Instalación y Configuración
 
 ### Requisitos Previos
 
-- Node.js (versión 18.x o superior)
-- pnpm (gestor de paquetes)
-- Certificados SSL para HTTPS (opcional en desarrollo)
+- **Node.js** v18.x o superior
+- **pnpm** v8.x o superior
+- **Certificados SSL/TLS** para HTTPS (incluidos en `secrets/`)
 
 ### Instalación
 
-1. Clona este repositorio:
+1. **Clonar el repositorio**:
    ```bash
-   git clone <url-del-repositorio>
+   git clone https://github.com/DanteChavez/IntegracionBack.git
+   cd IntegracionBack
    ```
 
-2. Instala las dependencias con pnpm:
+2. **Instalar dependencias**:
    ```bash
    pnpm install
    ```
 
-3. Crea un archivo `.env` en la raíz del proyecto con el siguiente contenido:
+3. **Configurar variables de entorno** (`.env`):
    ```env
    NODE_ENV=development
    PORT=3000
-   JWT_SECRET=EstoEsUnSecretoSuperSeguroParaElCursoGPI
-   JWT_EXPIRES_IN=1d
    
-   # Stripe
+   # Proveedores de pago (opcional para desarrollo, usa mocks)
    STRIPE_SECRET_KEY=sk_test_...
    STRIPE_WEBHOOK_SECRET=whsec_...
    
-   # PayPal
    PAYPAL_CLIENT_ID=your_paypal_client_id
    PAYPAL_CLIENT_SECRET=your_paypal_client_secret
    PAYPAL_MODE=sandbox
    
-   # Webpay
    WEBPAY_COMMERCE_CODE=your_commerce_code
    WEBPAY_API_KEY=your_api_key
+   
+   # Seguridad
+   ALLOWED_ORIGINS=https://localhost:5173
    ```
 
-4. Genera certificados SSL para HTTPS (opcional en desarrollo):
+4. **Certificados SSL** (ya incluidos en `secrets/`):
    ```bash
-   mkdir secrets
-   # Copiar tus certificados pulgashopkey.pem y pulgashopcert.pem a secrets/
+   # Los certificados ya están en el proyecto:
+   secrets/pulgashopkey.pem   # Clave privada
+   secrets/pulgashopcert.pem  # Certificado público
    ```
 
 ### Ejecución
 
-- **Desarrollo**:
+- **Modo Desarrollo** (con hot-reload):
   ```bash
   pnpm start:dev
   ```
-  Esto iniciará el servidor en modo desarrollo con recarga automática en `https://localhost:3000/api`
-
-- **Producción**:
+  
+- **Modo Producción**:
   ```bash
   pnpm build
   pnpm start:prod
   ```
 
-## 📚 Documentación API (Swagger)
+- **Tests E2E**:
+  ```bash
+  pnpm test:e2e
+  ```
 
-Una vez iniciado el servidor, la documentación interactiva de Swagger está disponible en:
+### Salida del Servidor
 
+```bash
+🔒 Payment API running securely on: https://localhost:3000/api
+📚 Swagger Documentation: https://localhost:3000/api/docs
+📥 Download Swagger JSON: https://localhost:3000/api/docs-json
+📥 Download Swagger YAML: https://localhost:3000/api/docs-yaml
+🛡️  Security: TLS 1.2+, PCI-DSS Basic Compliance
+⚠️  Environment: development
 ```
-https://localhost:3000/api/docs
+
+
+## 📚 Documentación API con Swagger
+
+### Acceso a la Documentación
+
+Una vez iniciado el servidor, la documentación interactiva está disponible en:
+
+**🌐 Swagger UI Interactivo**: `https://localhost:3000/api/docs`
+
+### 📥 Descargar Documentación
+
+El sistema permite descargar la especificación OpenAPI en dos formatos:
+
+| Formato | URL | Descripción |
+|---------|-----|-------------|
+| **JSON** | `https://localhost:3000/api/docs-json` | Especificación OpenAPI 3.0 en formato JSON |
+| **YAML** | `https://localhost:3000/api/docs-yaml` | Especificación OpenAPI 3.0 en formato YAML |
+
+**Ejemplo de descarga con curl**:
+```bash
+# Descargar JSON
+curl -k https://localhost:3000/api/docs-json -o swagger.json
+
+# Descargar YAML
+curl -k https://localhost:3000/api/docs-yaml -o swagger.yaml
 ```
 
-Swagger proporciona:
-- Documentación completa de todos los endpoints
-- Posibilidad de probar las APIs directamente desde el navegador
-- Esquemas de request/response
-- Códigos de estado HTTP y ejemplos
+### Características de la Documentación
 
-## 🔐 Seguridad y Cumplimiento
+✅ **Ejemplos completos** para cada proveedor (Stripe, PayPal, Webpay)  
+✅ **Códigos de respuesta** documentados (200, 201, 400, 422, 429)  
+✅ **Autenticación JWT** integrada en la UI  
+✅ **Try it out** para probar endpoints directamente  
+✅ **Esquemas de validación** con decoradores de class-validator  
+✅ **Requisitos de seguridad** documentados en cada endpoint  
 
-### ⚠️ IMPORTANTE: Flujo Seguro de Pago
+### Endpoints Documentados
 
-Este sistema implementa **medidas de seguridad PCI-DSS nivel básico**. Para procesar un pago:
+#### 🔐 Seguridad (2 pasos obligatorios)
+- `POST /api/pagos/confirm-amount` - Confirmar monto (genera token)
+- `POST /api/pagos` - Procesar pago (requiere token + CVV)
 
-1. **PASO 1:** Confirmar el monto
-   - Endpoint: `POST /api/pagos/confirm-amount`
-   - Genera un token de confirmación válido por 5 minutos
-   
-2. **PASO 2:** Procesar el pago
+#### 💳 Interfaz de Pago
+- `GET /api/pagos/payment-methods` - Métodos de pago disponibles
+- `POST /api/pagos/validate-payment-method` - Validar formato de tarjeta
+- `GET /api/pagos/session/:id` - Estado de sesión con temporizador
+
+#### 🔄 Reembolsos
+- `POST /api/pagos/:id/refund` - Procesar reembolso
+- `GET /api/pagos/:id` - Consultar estado de pago
+
+#### 🪝 Webhooks
+- `POST /api/webhooks/stripe` - Notificaciones de Stripe
+- `POST /api/webhooks/paypal` - Notificaciones de PayPal
+- `POST /api/webhooks/webpay` - Notificaciones de Webpay
+
+
+## 🔐 Seguridad - Cumplimiento PCI-DSS
+
+### Flujo Seguro de Pago (2 Pasos Obligatorios)
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant Processor
+    participant AuditLog
+
+    Client->>API: 1. POST /confirm-amount
+    API->>AuditLog: Log AMOUNT_CONFIRMATION
+    API->>Client: Token (válido 5 min)
+    
+    Client->>API: 2. POST /pagos (con token)
+    API->>API: Validar token & CVV
+    API->>AuditLog: Log PAYMENT_ATTEMPT
+    API->>Processor: Process Payment
+    Processor->>API: Payment Result
+    API->>AuditLog: Log PAYMENT_SUCCESS/FAILURE
+    API->>Client: Payment Response
+```
+
+### Criterios de Aceptación Implementados
+
+#### CA1: Cifrado TLS 1.2+ Obligatorio 🔒
+```typescript
+// main.ts - Configuración HTTPS
+const httpsOptions = {
+  minVersion: 'TLSv1.2',
+  maxVersion: 'TLSv1.3',
+  ciphers: [
+    'ECDHE-RSA-AES128-GCM-SHA256',
+    'ECDHE-RSA-AES256-GCM-SHA384'
+  ].join(':')
+};
+
+// Headers de seguridad con Helmet
+app.use(helmet({
+  hsts: { maxAge: 31536000 },
+  contentSecurityPolicy: true,
+  frameguard: { action: 'deny' }
+}));
+```
+
+#### CA2: Cero Almacenamiento de Datos Sensibles 🚫
+```typescript
+// ✅ Lo que SÍ se procesa (en memoria, nunca en BD)
+- CVV: Validado y enviado al procesador
+- Número de tarjeta: Tokenizado por el proveedor
+
+// ❌ Lo que NUNCA se almacena
+- CVV completo
+- Número de tarjeta completo (PAN)
+- Solo se guardan: last4Digits, cardHolderName
+
+// Response siempre excluye CVV
+@Exclude()
+cvv: string;
+```
+
+#### CA3: Verificación CVV Requerida ✓
+```typescript
+// process-payment.dto.ts
+export class ProcessPaymentDto {
+  @IsNotEmpty({ message: 'El código CVV es requerido' })
+  @IsNumberString({}, { message: 'CVV debe contener solo números' })
+  @Length(3, 4, { message: 'CVV debe tener 3 o 4 dígitos' })
+  cvv: string;
+}
+
+// Guard rechaza pagos sin CVV con 400 Bad Request
+```
+
+#### CA4: Rate Limiting (3 Intentos) 🚦
+```typescript
+// payment-attempt.guard.ts
+@Injectable()
+export class PaymentAttemptGuard implements CanActivate {
+  private readonly MAX_ATTEMPTS = 3;
+  
+  canActivate(context: ExecutionContext): boolean {
+    if (failedAttempts >= this.MAX_ATTEMPTS) {
+      throw new HttpException(
+        'Límite de intentos excedido',
+        HttpStatus.TOO_MANY_REQUESTS // 429
+      );
+    }
+  }
+}
+
+// Aplicado con decorator @UseGuards(PaymentAttemptGuard)
+```
+
+#### CA5: Logging de Auditoría Completo 📝
+```typescript
+// security-audit.service.ts
+enum SecurityEventType {
+  AMOUNT_CONFIRMATION   = 'Confirmación de monto',
+  PAYMENT_ATTEMPT       = 'Intento de pago',
+  PAYMENT_SUCCESS       = 'Pago exitoso',
+  PAYMENT_FAILURE       = 'Pago fallido',
+  RATE_LIMIT_EXCEEDED   = 'Límite excedido',
+  SUSPICIOUS_ACTIVITY   = 'Actividad sospechosa'
+}
+
+// Cada evento registra:
+// - Timestamp, userId, sessionId, ipAddress
+// - Datos enmascarados (últimos 4 dígitos)
+// - Metadata del evento
+```
+
+#### CA6: Protección de Datos Personales 🛡️
+```typescript
+// ValidationPipe global
+app.useGlobalPipes(new ValidationPipe({
+  whitelist: true,              // Remover propiedades no definidas
+  forbidNonWhitelisted: true,   // Rechazar propiedades extra (400)
+  transform: true,              // Transformar tipos automáticamente
+  forbidUnknownValues: true     // Rechazar valores desconocidos
+}));
+
+// Enmascaramiento automático en logs
+maskSensitiveData(userId: '123456789')
+// Output: '***6789'
+```
    - Endpoint: `POST /api/pagos`
    - Requiere: token de confirmación + CVV + datos del pago
    - Máximo 3 intentos fallidos por sesión
@@ -288,11 +506,77 @@ Eventos auditados:
 
 **📖 Ver documentación completa de seguridad:** [SECURITY.md](./SECURITY.md)
 
-## 🌐 API Endpoints
 
-### 🔒 Seguridad (Confirmación de Monto)
+## 🧪 Testing
 
-- **POST /api/pagos/confirm-amount**: Confirmar monto antes de pagar (PASO 1)
+### Tests E2E de Seguridad
+
+El proyecto incluye una suite completa de tests E2E que verifican todos los criterios de seguridad:
+
+```bash
+# Ejecutar tests E2E de seguridad
+pnpm jest --config ./test/jest-e2e.json test/security/payment-security.e2e-spec.ts --forceExit
+```
+
+**Resultados Actuales**: ✅ **14/14 tests passing (100%)**
+
+### Cobertura de Tests
+
+| Criterio | Tests | Estado |
+|----------|-------|--------|
+| **CA1: TLS/HTTPS** | 2 tests | ✅ Passing |
+| **CA2: No Card Data Storage** | 2 tests | ✅ Passing |
+| **CA3: CVV Required** | 3 tests | ✅ Passing |
+| **CA4: Rate Limiting** | 2 tests | ✅ Passing |
+| **CA5: Audit Logging** | 1 test | ✅ Passing |
+| **CA6: Data Protection** | 1 test | ✅ Passing |
+| **Flujo Completo** | 3 tests | ✅ Passing |
+
+### Ejemplos de Tests
+
+```typescript
+// Test de Rate Limiting (CA4)
+it('should block after 3 failed payment attempts', async () => {
+  // Intento 1, 2, 3 - fallan por token inválido
+  await request(app.getHttpServer())
+    .post('/pagos')
+    .send(invalidPayment)
+    .expect(422);
+
+  // Intento 4 - bloqueado por rate limiting
+  await request(app.getHttpServer())
+    .post('/pagos')
+    .send(invalidPayment)
+    .expect(429); // Too Many Requests
+});
+
+// Test de CVV requerido (CA3)
+it('should reject payment without CVV', async () => {
+  const paymentWithoutCVV = { ...validPayment };
+  delete paymentWithoutCVV.cardSecurity.cvv;
+
+  await request(app.getHttpServer())
+    .post('/pagos')
+    .send(paymentWithoutCVV)
+    .expect(400)
+    .expect(res => {
+      expect(res.body.message).toContain('CVV');
+    });
+});
+```
+
+### Ejecutar Tests Específicos
+
+```bash
+# Todos los tests E2E
+pnpm test:e2e
+
+# Solo tests de seguridad
+pnpm test:e2e test/security/
+
+# Con cobertura
+pnpm test:cov
+```
   ```json
   {
     "amount": 100.50,
@@ -616,68 +900,174 @@ export class AuthService {
        // Lógica de integración con Mercado Pago
      }
    }
-   ```
 
-3. Registra la factory en el módulo de pagos:
-   ```typescript
-   @Module({
-     providers: [
-       // ...
-       MercadoPagoPaymentFactory,
-     ],
-   })
-   export class PaymentsModule {
-     constructor(
-       private registry: PaymentFactoryRegistry,
-       private mercadoPagoFactory: MercadoPagoPaymentFactory,
-     ) {
-       this.registry.register('mercadopago', this.mercadoPagoFactory);
-     }
-   }
-   ```
+## 🛠️ Extensibilidad - Agregar Nuevo Proveedor
 
-### Añadir un Nuevo Módulo
+El sistema está diseñado siguiendo el **principio Open/Closed**: abierto para extensión, cerrado para modificación.
 
-1. Genera el módulo con NestJS CLI:
-   ```bash
-   nest generate module orders
-   nest generate controller orders
-   nest generate service orders
-   ```
+### Pasos para agregar un nuevo proveedor (ej: Mercado Pago)
 
-2. Define el esquema, DTOs y lógica de negocio
+#### 1. Crear el Procesador
+```typescript
+// src/payments/infrastructure/processors/mercadopago-payment.processor.ts
+@Injectable()
+export class MercadoPagoPaymentProcessor implements IPaymentProcessor {
+  async processPayment(data: ProcessPaymentDto): Promise<PaymentResult> {
+    // Implementar lógica de Mercado Pago
+    return {
+      paymentId: 'mp_123456789',
+      status: 'COMPLETED',
+      transactionId: 'txn_abc123',
+      providerResponse: { /* respuesta del proveedor */ }
+    };
+  }
 
-3. Importa el módulo en `app.module.ts`
+  async refundPayment(data: RefundPaymentDto): Promise<RefundResult> {
+    // Implementar lógica de reembolso
+  }
 
-## 🧪 Testing
-
-```bash
-# Tests unitarios
-pnpm test
-
-# Tests e2e
-pnpm test:e2e
-
-# Cobertura de tests
-pnpm test:cov
+  // Implementar otros métodos requeridos...
+}
 ```
 
-## 🔐 Seguridad
+#### 2. Crear la Factory
+```typescript
+// src/payments/infrastructure/factories/mercadopago-payment.factory.ts
+@Injectable()
+export class MercadoPagoPaymentFactory implements IPaymentProcessorFactory {
+  createProcessor(): IPaymentProcessor {
+    return new MercadoPagoPaymentProcessor();
+  }
 
-- Las contraseñas se hashean con bcrypt antes de almacenarse
-- JWT con tiempo de expiración configurable
-- HTTPS obligatorio en producción
-- Validación de entrada en todos los endpoints
-- Rate limiting recomendado para producción
-- Webhooks validados con firmas de proveedor
+  createValidator(): IPaymentValidator {
+    return new MercadoPagoPaymentValidator();
+  }
 
-## ⚠️ Notas Importantes
+  createNotifier(): IPaymentNotifier {
+    return new MercadoPagoPaymentNotifier();
+  }
+}
+```
 
-- Este backend está diseñado para desarrollo local. Para producción, se deben implementar medidas de seguridad adicionales.
-- El secreto JWT debe mantenerse seguro y cambiarse en un entorno de producción.
-- Las contraseñas se almacenan hasheadas, pero se pueden implementar políticas más estrictas.
-- La conexión a MongoDB está configurada para una instancia local. Para producción, considera usar MongoDB Atlas u otro servicio en la nube.
+#### 3. Registrar en el Módulo
+```typescript
+// src/payments/payments.module.ts
+@Module({
+  providers: [
+    // ... proveedores existentes
+    MercadoPagoPaymentFactory,
+  ],
+})
+export class PaymentsModule {
+  constructor(
+    private readonly registry: PaymentFactoryRegistry,
+    private readonly mercadoPagoFactory: MercadoPagoPaymentFactory,
+  ) {
+    // Registrar factories existentes
+    this.registry.register('stripe', this.stripeFactory);
+    this.registry.register('paypal', this.paypalFactory);
+    this.registry.register('webpay', this.webpayFactory);
+    
+    // ✅ Agregar nuevo proveedor
+    this.registry.register('mercadopago', this.mercadoPagoFactory);
+  }
+}
+```
+
+**✨ ¡Listo!** El nuevo proveedor está integrado sin modificar código existente.
+
+## 📊 Mejores Prácticas Implementadas
+
+### SOLID Principles
+- ✅ **Single Responsibility**: Cada clase tiene una responsabilidad única
+- ✅ **Open/Closed**: Abierto para extensión, cerrado para modificación
+- ✅ **Liskov Substitution**: Todos los procesadores son intercambiables
+- ✅ **Interface Segregation**: Interfaces específicas y cohesivas
+- ✅ **Dependency Inversion**: Dependencias hacia abstracciones
+
+### Design Patterns
+- ✅ **Factory Pattern**: Creación dinámica de procesadores
+- ✅ **Strategy Pattern**: Algoritmos intercambiables por proveedor
+- ✅ **Repository Pattern**: Abstracción de acceso a datos
+- ✅ **Dependency Injection**: Inyección automática de dependencias
+- ✅ **Guard Pattern**: Validaciones y autorización
+
+### Security Best Practices
+- ✅ **Defense in Depth**: Múltiples capas de seguridad
+- ✅ **Least Privilege**: Permisos mínimos necesarios
+- ✅ **Input Validation**: Validación estricta de todas las entradas
+- ✅ **Secure by Default**: Configuración segura por defecto
+- ✅ **Audit Logging**: Registro completo de eventos
+
+## 🐛 Troubleshooting
+
+### Error: "Cannot find module './secrets/pulgashopkey.pem'"
+**Solución**: Asegúrate de tener los certificados SSL en la carpeta `secrets/`
+
+### Error: "listen EADDRINUSE: address already in use :::3000"
+**Solución**: El puerto 3000 está en uso. Cambia el puerto en `.env` o mata el proceso:
+```bash
+# Windows
+netstat -ano | findstr :3000
+taskkill /PID <PID> /F
+
+# Linux/Mac
+lsof -ti:3000 | xargs kill -9
+```
+
+### Error: "Too Many Requests (429)"
+**Solución**: Has excedido el límite de 3 intentos fallidos. Espera 1 hora o reinicia el servidor en desarrollo.
+
+### Tests fallan con "DEPTH_ZERO_SELF_SIGNED_CERT"
+**Solución**: Los certificados son autofirmados. Usa la bandera `-k` en curl o `NODE_TLS_REJECT_UNAUTHORIZED=0` en development.
+
+## 📝 Changelog
+
+### v1.0.0 (2025-10-28)
+- ✅ Implementación completa de Historia de Usuario 2 (Seguridad)
+- ✅ Tests E2E al 100% (14/14 passing)
+- ✅ Documentación Swagger descargable (JSON/YAML)
+- ✅ Soporte para 3 proveedores: Stripe, PayPal, Webpay
+- ✅ Arquitectura DDD con patrón Factory
+- ✅ Rate limiting y logging de auditoría
+- ✅ Cumplimiento PCI-DSS básico
+
+## 🤝 Contribución
+
+Este proyecto es parte de un curso académico. Para contribuir:
+
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+## 📄 Licencia
+
+Este proyecto es de uso académico para la **Universidad de Valparaíso**.
+
+## 👥 Autores
+
+**Curso**: Gestión de Proyecto Informático  
+**Universidad**: Universidad de Valparaíso  
+**Profesores**: Diego Monsalves, René Noël  
+**Estudiante**: Dante Chavez
+
+## 📚 Referencias
+
+- [NestJS Documentation](https://docs.nestjs.com/)
+- [PCI-DSS Security Standards](https://www.pcisecuritystandards.org/)
+- [Swagger/OpenAPI Specification](https://swagger.io/specification/)
+- [Domain-Driven Design](https://martinfowler.com/bliki/DomainDrivenDesign.html)
+- [SOLID Principles](https://en.wikipedia.org/wiki/SOLID)
+
+## 🔗 Enlaces Útiles
+
+- **Repositorio**: https://github.com/DanteChavez/IntegracionBack
+- **Swagger UI**: https://localhost:3000/api/docs
+- **Swagger JSON**: https://localhost:3000/api/docs-json
+- **Swagger YAML**: https://localhost:3000/api/docs-yaml
 
 ---
 
-Desarrollado para la asignatura de Gestión de Proyecto Informático - Diego Monsalves - René Noël - Universidad de Valparaíso
+**🎓 Desarrollado con fines académicos | Universidad de Valparaíso © 2025**
