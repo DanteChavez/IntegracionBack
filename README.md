@@ -6,6 +6,7 @@ Backend desarrollado con **NestJS** que implementa un sistema robusto de procesa
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![Tests](https://img.shields.io/badge/Tests-14%2F14%20passing-success)](./test/security/)
 [![Security](https://img.shields.io/badge/Security-PCI--DSS%20Compliant-green)](https://www.pcisecuritystandards.org/)
+[![Frontend](https://img.shields.io/badge/Frontend-React%2019-61DAFB?logo=react)](https://github.com/DanteChavez/IntegracionFront)
 
 ## ✨ Características Principales
 
@@ -1023,20 +1024,28 @@ lsof -ti:3000 | xargs kill -9
 
 ## 📝 Changelog
 
-### v1.0.0 (2025-10-28)
-- ✅ Implementación completa de Historia de Usuario 2 (Seguridad)
+### v1.0.0 (2025-10-30)
+- ✅ Implementación completa del sistema de pagos multi-proveedor
+- ✅ Soporte para Stripe, PayPal y Webpay en modo MOCK
+- ✅ Arquitectura DDD (Domain-Driven Design) con patrón Factory
+- ✅ Seguridad PCI-DSS compliant:
+  - Cifrado TLS 1.2+ obligatorio
+  - Zero almacenamiento de datos sensibles (CVV, PAN)
+  - Verificación CVV en todas las transacciones
+  - Rate limiting (3 intentos por sesión)
+  - Logging completo de auditoría
+- ✅ Headers de seguridad (x-session-id, x-user-id)
+- ✅ Flujo de confirmación en 2 pasos con tokens (5 min expiry)
+- ✅ Swagger/OpenAPI con documentación descargable (JSON/YAML)
 - ✅ Tests E2E al 100% (14/14 passing)
-- ✅ Documentación Swagger descargable (JSON/YAML)
-- ✅ Soporte para 3 proveedores: Stripe, PayPal, Webpay
-- ✅ Arquitectura DDD con patrón Factory
-- ✅ Rate limiting y logging de auditoría
-- ✅ Cumplimiento PCI-DSS básico
+- ✅ Validación completa con Class Validator
+- ✅ Integración completa con frontend React 19
 
 ## 🤝 Contribución
 
 Este proyecto es parte de un curso académico. Para contribuir:
 
-1. Fork el proyecto
+1. Fork el repositorio
 2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
 3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
 4. Push a la rama (`git push origin feature/AmazingFeature`)
@@ -1053,6 +1062,8 @@ Este proyecto es de uso académico para la **Universidad de Valparaíso**.
 **Profesores**: Diego Monsalves, René Noël  
 **Estudiante**: Dante Chavez
 
+---
+
 ## 📚 Referencias
 
 - [NestJS Documentation](https://docs.nestjs.com/)
@@ -1060,13 +1071,25 @@ Este proyecto es de uso académico para la **Universidad de Valparaíso**.
 - [Swagger/OpenAPI Specification](https://swagger.io/specification/)
 - [Domain-Driven Design](https://martinfowler.com/bliki/DomainDrivenDesign.html)
 - [SOLID Principles](https://en.wikipedia.org/wiki/SOLID)
+- [Stripe API Documentation](https://stripe.com/docs/api)
+- [PayPal Developer Docs](https://developer.paypal.com/docs/api/overview/)
+
+---
 
 ## 🔗 Enlaces Útiles
 
-- **Repositorio**: https://github.com/DanteChavez/IntegracionBack
+- **Repositorio Backend**: [IntegracionBack](https://github.com/DanteChavez/IntegracionBack)
+- **Repositorio Frontend**: [IntegracionFront](https://github.com/DanteChavez/IntegracionFront)
 - **Swagger UI**: https://localhost:3000/api/docs
 - **Swagger JSON**: https://localhost:3000/api/docs-json
 - **Swagger YAML**: https://localhost:3000/api/docs-yaml
+- **Frontend App**: https://localhost:3001
+
+## 👨‍💻 Repositorios
+
+
+- **GitHub Backend:** [@DanteChavez/IntegracionBack](https://github.com/DanteChavez/IntegracionBack)
+- **GitHub Frontend:** [@DanteChavez/IntegracionFront](https://github.com/DanteChavez/IntegracionFront)
 
 ---
 
