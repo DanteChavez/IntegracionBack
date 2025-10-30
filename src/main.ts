@@ -53,9 +53,12 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   
   // CORS configurado de forma segura
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3001', 'https://localhost:3001'];
+  console.log('🌐 CORS Allowed Origins:', allowedOrigins);
+  
   app.enableCors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['https://localhost:5173'],
-    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-ID', 'X-User-ID'],
     credentials: true,
     maxAge: 3600,
@@ -71,10 +74,15 @@ async function bootstrap() {
       '- CVV requerido para todas las transacciones\n' +
       '- Máximo 3 intentos fallidos por sesión\n' +
       '- Todos los eventos son auditados y registrados\n' +
-      '- Cumplimiento PCI-DSS nivel básico')
+      '- Cumplimiento PCI-DSS nivel básico\n\n' +
+      '🔑 Headers Requeridos:\n' +
+      '- x-session-id: ID único de la sesión de pago (obligatorio)\n' +
+      '- x-user-id: ID del usuario o "anonymous" para invitados (obligatorio)\n\n' +
+      '📝 Nota: Estos headers son necesarios para la auditoría de seguridad y validación de tokens de confirmación.')
     .setVersion('1.0.0')
     .addTag('pagos', 'Endpoints para gestión de pagos')
     .addTag('seguridad', 'Endpoints de confirmación y seguridad')
+    .addTag('interfaz-pago', 'Endpoints para interfaz de usuario')
     .addTag('reembolsos', 'Endpoints para gestión de reembolsos')
     .addTag('webhooks', 'Endpoints para webhooks de proveedores')
     .addServer('https://localhost:3000', 'Servidor de desarrollo (HTTPS)')
@@ -86,6 +94,24 @@ async function bootstrap() {
         description: 'Ingrese el token JWT de autenticación',
       },
       'JWT',
+    )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        name: 'x-session-id',
+        in: 'header',
+        description: 'ID único de la sesión de pago (requerido para auditoría)',
+      },
+      'SessionID',
+    )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        name: 'x-user-id',
+        in: 'header',
+        description: 'ID del usuario o "anonymous" para invitados (requerido para auditoría)',
+      },
+      'UserID',
     )
     .build();
     

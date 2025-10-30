@@ -1,0 +1,16 @@
+{
+  "iva": {
+    "rate": 0.19,
+    "description": "Impuesto al Valor Agregado (IVA)",
+    "country": "Chile"
+  },
+  "currency": {
+    "code": "CLP",
+    "symbol": "$",
+    "decimals": 0
+  },
+  "checkout": {
+    "timeoutSeconds": 600,
+    "description": "Tiempo límite para completar la compra (10 minutos)"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "id": "prod-001",
+      "name": "Audífonos Pro",
+      "price": 29990,
+      "quantity": 1
+    },
+    {
+      "id": "prod-002",
+      "name": "Mouse Inalámbrico",
+      "price": 14990,
+      "quantity": 1
+    },
+    {
+      "id": "prod-003",
+      "name": "Teclado Mecánico",
+      "price": 49990,
+      "quantity": 1
+    },
+    {
+      "id": "prod-004",
+      "name": "Gran consolador anal",
+      "price": 149990,
+      "quantity": 1
+    }
+  ]
+}

@@ -129,8 +129,13 @@ export class PaymentController {
     description: 
       'Genera un token de confirmación temporal para el monto del pago. ' +
       'Este token debe ser usado en el siguiente paso para procesar el pago. ' +
-      'El token expira en 5 minutos por seguridad.',
+      'El token expira en 5 minutos por seguridad.\n\n' +
+      '**Headers Requeridos:**\n' +
+      '- `x-session-id`: ID único de la sesión (ej: session_1234567890_abc123)\n' +
+      '- `x-user-id`: ID del usuario o "anonymous" para invitados',
   })
+  @ApiSecurity('SessionID')
+  @ApiSecurity('UserID')
   @ApiBody({ type: ConfirmPaymentAmountDto })
   @ApiResponse({
     status: 200,
@@ -164,9 +169,14 @@ export class PaymentController {
       '4. Máximo 3 intentos fallidos por sesión (CA4)\n' +
       '5. Todas las transacciones son auditadas (CA5)\n' +
       '6. Solo conexiones HTTPS/TLS 1.2+ (CA1)\n\n' +
+      '**Headers Requeridos:**\n' +
+      '- `x-session-id`: DEBE ser el mismo usado en confirm-amount\n' +
+      '- `x-user-id`: DEBE ser el mismo usado en confirm-amount\n\n' +
       'Crea un nuevo pago con validaciones específicas según el proveedor seleccionado.'
   })
   @ApiSecurity('JWT')
+  @ApiSecurity('SessionID')
+  @ApiSecurity('UserID')
   @ApiBody({
     type      : ProcessPaymentDto,
     examples  : {
