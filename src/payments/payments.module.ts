@@ -1,6 +1,7 @@
 import { Module, NestModule, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule }                 from '@nestjs/config';
 import { ThrottlerModule }              from '@nestjs/throttler';
+import { TypeOrmModule }                from '@nestjs/typeorm';
 import { PaymentController }            from './presentation/controllers/payment.controller';
 import { WebhookController }            from './presentation/controllers/webhook.controller';
 import { PaymentApplicationService }    from './application/services/payment-application.service';
@@ -28,9 +29,16 @@ import { WebpayPaymentFactory }    from './infrastructure/factories/webpay-payme
 // Payment Domain
 import { PaymentProvider }         from './domain/entities/payment.entity';
 
+// Database
+import { PagoEntity }              from './infrastructure/database/entities/pago.entity';
+import { HistorialErrorEntity }    from './infrastructure/database/entities/historial-error.entity';
+import { PagoRepository }          from './infrastructure/database/repositories/pago.repository';
+
 @Module({
   imports: [
     ConfigModule,
+    // TypeORM para entidades de pago
+    TypeOrmModule.forFeature([PagoEntity, HistorialErrorEntity]),
     // CA4: Throttling global para prevenir ataques de fuerza bruta
     ThrottlerModule.forRoot([{
       ttl: 60000,      // 60 segundos
@@ -56,6 +64,9 @@ import { PaymentProvider }         from './domain/entities/payment.entity';
     
     // CA4: Guards de seguridad
     PaymentAttemptGuard,
+    
+    // Repositorio de base de datos
+    PagoRepository,
     
     // Payment Processors
     StripePaymentProcessor,

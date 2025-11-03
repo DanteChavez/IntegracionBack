@@ -10,27 +10,32 @@ Backend desarrollado con **NestJS** que implementa un sistema robusto de procesa
 
 ## ✨ Características Principales
 
-### 🛡️ Seguridad (Historia de Usuario 2)
+### 🛡️ Seguridad (Historia de Usuario 2) - 95% Completado
 - ✅ **CA1**: Cifrado TLS 1.2+ obligatorio con certificados SSL
-- ✅ **CA2**: Cero almacenamiento de datos sensibles (CVV, PAN)
+- ✅ **CA2**: Cero almacenamiento de datos sensibles (CVV nunca se guarda)
 - ✅ **CA3**: Verificación CVV requerida en todas las transacciones
 - ✅ **CA4**: Rate limiting - máximo 3 intentos fallidos por sesión
-- ✅ **CA5**: Logging completo de auditoría de seguridad
+- ✅ **CA5**: Logging completo de auditoría de seguridad con enmascaramiento
 - ✅ **CA6**: Protección de datos personales con validación estricta
+- ✅ **Detección inteligente** de actividad sospechosa (montos por moneda, intentos múltiples)
+- ✅ **Simulación de errores** para testing (amount=666)
 
-### 💳 Procesamiento de Pagos (Historia de Usuario 1)
+### 💳 Procesamiento de Pagos (Historia de Usuario 1) - 85% Completado
 - ✅ Soporte para 3 proveedores: **Stripe**, **PayPal**, **Webpay**
 - ✅ Arquitectura DDD (Domain-Driven Design)
 - ✅ Patrón Factory para procesadores de pago
-- ✅ Flujo de confirmación en 2 pasos
+- ✅ Flujo de confirmación en 2 pasos (token + CVV)
 - ✅ Validación de métodos de pago en tiempo real
 - ✅ Gestión de sesiones con temporizador
+- ✅ Captura de datos de tarjeta (last4Digits, cardHolderName)
+- ✅ Validación CVV mejorada (4 dígitos máx, solo números)
 
 ### 📚 Documentación y APIs
 - ✅ Swagger UI interactivo en `/api/docs`
-- ✅ **Descarga de documentación** en JSON y YAML
-- ✅ Ejemplos completos para cada proveedor
-- ✅ Autenticación JWT integrada
+- ✅ **Descarga de documentación** en JSON (`/api/docs-json`) y YAML (`/api/docs-yaml`)
+- ✅ Ejemplos completos para cada proveedor (Stripe, PayPal, Webpay)
+- ✅ Autenticación JWT integrada con headers x-session-id y x-user-id
+- ✅ Tags organizados: pagos, seguridad, interfaz-pago, reembolsos, webhooks, consultas, cancelaciones
 
 ## 🚀 Tecnologías y Stack
 
@@ -389,15 +394,29 @@ app.use(helmet({
 #### CA2: Cero Almacenamiento de Datos Sensibles 🚫
 ```typescript
 // ✅ Lo que SÍ se procesa (en memoria, nunca en BD)
-- CVV: Validado y enviado al procesador
-- Número de tarjeta: Tokenizado por el proveedor
+- CVV: Validado y enviado al procesador, NUNCA guardado
+
+// ✅ Lo que SÍ se almacena (PCI-DSS compliant)
+- last4Digits: Últimos 4 dígitos de la tarjeta
+- cardHolderName: Nombre del titular (sanitizado)
+- proveedor: stripe/paypal/webpay
 
 // ❌ Lo que NUNCA se almacena
-- CVV completo
+- CVV completo (ni siquiera hasheado)
 - Número de tarjeta completo (PAN)
-- Solo se guardan: last4Digits, cardHolderName
+- Fecha de expiración completa
 
 // Response siempre excluye CVV
+@Exclude()
+cvv: string;
+
+// Controller sanitiza cardSecurity antes de DB:
+const cardSecurityWithoutCvv = {
+  last4Digits: dto.cardSecurity?.last4Digits,
+  cardHolderName: dto.cardSecurity?.cardHolderName,
+  // CVV intencionalmente excluido
+};
+```
 @Exclude()
 cvv: string;
 ```
@@ -405,12 +424,25 @@ cvv: string;
 #### CA3: Verificación CVV Requerida ✓
 ```typescript
 // process-payment.dto.ts
-export class ProcessPaymentDto {
+export class CardSecurityData {
   @IsNotEmpty({ message: 'El código CVV es requerido' })
   @IsNumberString({}, { message: 'CVV debe contener solo números' })
-  @Length(3, 4, { message: 'CVV debe tener 3 o 4 dígitos' })
+  @Length(3, 4, { message: 'CVV debe tener entre 3 y 4 dígitos' })
   cvv: string;
+
+  @IsOptional()
+  @Length(4, 4, { message: 'last4Digits debe tener exactamente 4 dígitos' })
+  last4Digits?: string;
+
+  @IsOptional()
+  @IsString()
+  cardHolderName?: string;
 }
+
+// Frontend: Validación en tiempo real
+// - maxLength="4" en input CVV
+// - onChange: value.replace(/\D/g, '') para solo números
+// - Validación de longitud antes de submit
 
 // Guard rechaza pagos sin CVV con 400 Bad Request
 ```
@@ -443,14 +475,26 @@ enum SecurityEventType {
   PAYMENT_ATTEMPT       = 'Intento de pago',
   PAYMENT_SUCCESS       = 'Pago exitoso',
   PAYMENT_FAILURE       = 'Pago fallido',
+  CVV_VALIDATION_FAILED = 'Validación CVV fallida',
   RATE_LIMIT_EXCEEDED   = 'Límite excedido',
-  SUSPICIOUS_ACTIVITY   = 'Actividad sospechosa'
+  SUSPICIOUS_ACTIVITY   = 'Actividad sospechosa',
+  UNAUTHORIZED_ACCESS   = 'Acceso no autorizado',
+  DATA_BREACH_ATTEMPT   = 'Intento de violación de datos'
 }
 
 // Cada evento registra:
 // - Timestamp, userId, sessionId, ipAddress
 // - Datos enmascarados (últimos 4 dígitos)
 // - Metadata del evento
+// - Nivel de severidad (info, warn, error)
+
+// Detección inteligente de actividad sospechosa:
+// - Múltiples intentos fallidos (≥3)
+// - Montos inusuales según moneda:
+//   * USD: >$10,000
+//   * CLP: >$10,000,000
+//   * EUR: >€9,000
+// - Eventos críticos (rate limit, acceso no autorizado)
 ```
 
 #### CA6: Protección de Datos Personales 🛡️
@@ -697,6 +741,29 @@ pnpm test:cov
   - `400 Bad Request`: CVV inválido o datos incorrectos
   - `422 Unprocessable Entity`: Token de confirmación inválido/expirado
   - `429 Too Many Requests`: Límite de 3 intentos excedido (bloqueo 1 hora)
+
+  **🧪 Testing - Simulación de Errores:**
+  
+  Para simular errores de pago durante el testing, use `amount=666`:
+  ```json
+  {
+    "amount": 666,
+    "currency": "CLP",
+    "provider": "stripe",
+    "cardSecurity": {
+      "cvv": "123",
+      "last4Digits": "4242",
+      "cardHolderName": "JOHN DOE"
+    },
+    "confirmationToken": "conf_1a2b3c4d5e6f"
+  }
+  ```
+  
+  Esto generará:
+  - ✅ Estado: PENDING → PROCESSING → FAILED
+  - ✅ Registro en `historial_de_errores` con fecha automática
+  - ✅ Log de seguridad: PAYMENT_FAILURE
+  - ✅ Metadata con detalles del error simulado
 
 - **GET /api/pagos**: Obtener todos los pagos (paginado)
   ```
@@ -1024,6 +1091,32 @@ lsof -ti:3000 | xargs kill -9
 
 ## 📝 Changelog
 
+### v1.1.0 (2025-11-03) - Mejoras de Seguridad y UX
+- ✅ **Fix crítico**: Detección de actividad sospechosa ahora considera la moneda
+  - USD: >$10,000 | CLP: >$10,000,000 | EUR: >€9,000
+  - Elimina falsos positivos para pagos normales en CLP
+- ✅ **Captura de datos de tarjeta**: 
+  - Ahora se guardan `last4Digits` y `cardHolderName` en BD
+  - CVV NUNCA se almacena (solo procesado en memoria)
+  - Controller sanitiza cardSecurity antes de persistir
+- ✅ **Validación CVV mejorada en frontend**:
+  - Máximo 4 dígitos (Amex y Visa/Mastercard)
+  - Solo acepta números (no letras ni símbolos)
+  - Validación en tiempo real con feedback visual
+- ✅ **Simulación de errores para testing**:
+  - Usar `amount=666` para forzar error simulado
+  - Transición de estados corregida: PENDING→PROCESSING→FAILED
+  - Registro correcto en `historial_de_errores` con fecha automática
+- ✅ **Frontend: Visualización de cantidad de productos**:
+  - Muestra badge "x2", "x3" para cantidades múltiples
+  - Precio total por ítem (precio × cantidad)
+  - Badge con diseño verde distintivo
+- ✅ **Documentación Swagger ampliada**:
+  - Información de Historias de Usuario (HU1: 85%, HU2: 95%)
+  - Sección de testing con instrucciones de simulación de errores
+  - Tags mejorados con emojis para mejor navegación
+  - Descarga de docs en JSON/YAML documentada
+
 ### v1.0.0 (2025-10-30)
 - ✅ Implementación completa del sistema de pagos multi-proveedor
 - ✅ Soporte para Stripe, PayPal y Webpay en modo MOCK
@@ -1040,6 +1133,8 @@ lsof -ti:3000 | xargs kill -9
 - ✅ Tests E2E al 100% (14/14 passing)
 - ✅ Validación completa con Class Validator
 - ✅ Integración completa con frontend React 19
+
+**📋 Ver historial completo de cambios:** [CHANGELOG.md](./CHANGELOG.md)
 
 ## 🤝 Contribución
 

@@ -1,7 +1,7 @@
 import { IsEnum, IsNumber, IsOptional, IsString, Min, ValidateIf, IsUrl, IsObject, Matches, Length, IsNotEmpty, Max, IsInt, IsNumberString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaymentProvider } from '../../domain/entities/payment.entity';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 // Tipos específicos de paymentMethod según el proveedor
 export interface StripePaymentMethod {
@@ -119,12 +119,15 @@ export class ProcessPaymentDto {
   provider: PaymentProvider;
 
   @ApiProperty({
-    description: 'Datos de seguridad de la tarjeta (CVV requerido) - NO SE ALMACENAN',
+    description: 'Datos de seguridad de la tarjeta (CVV requerido solo para Stripe) - NO SE ALMACENAN',
     type: CardSecurityData,
+    required: false,
   })
-  @IsNotEmpty({ message: 'Los datos de seguridad de la tarjeta son requeridos' })
+  @ValidateIf(o => o.provider === PaymentProvider.STRIPE)
+  @IsNotEmpty({ message: 'Los datos de seguridad de la tarjeta son requeridos para Stripe' })
   @IsObject()
-  cardSecurity: CardSecurityData;
+  @Type(() => CardSecurityData)
+  cardSecurity?: CardSecurityData;
 
   @ApiProperty({
     description: 'Token de confirmación de monto (obtenido del endpoint /pagos/confirm-amount)',

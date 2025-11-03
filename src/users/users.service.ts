@@ -9,7 +9,8 @@ import { UpdateUserDto } from './schemas/dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
-  // Sin MongoDB, los métodos retornarán datos mock o lanzarán NotImplementedException
+  // Métodos retornarán datos mock o lanzarán NotImplementedException
+  // TODO: Implementar con TypeORM cuando se cree la tabla de usuarios en MySQL
   
   async create(createUserDto: CreateUserDto): Promise<any> {
     throw new ConflictException('Base de datos no configurada');

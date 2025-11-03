@@ -305,9 +305,18 @@ export class SecurityAuditService {
       return true;
     }
 
-    // Montos inusuales (más de 10000 USD)
-    if (data.amount && data.amount > 10000) {
-      return true;
+    // Montos inusuales según la moneda
+    if (data.amount && data.currency) {
+      const suspiciousThresholds = {
+        'USD': 10000,    // $10,000 USD
+        'CLP': 10000000, // $10,000,000 CLP (~$10,500 USD)
+        'EUR': 9000,     // €9,000 EUR (~$10,000 USD)
+      };
+      
+      const threshold = suspiciousThresholds[data.currency] || suspiciousThresholds['USD'];
+      if (data.amount > threshold) {
+        return true;
+      }
     }
 
     // Eventos críticos

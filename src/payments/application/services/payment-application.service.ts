@@ -8,6 +8,8 @@ import {
   ValidatePaymentMethodDto,
   PaymentMethodValidationResponse,
 } from '../dto/payment-method-info.dto';
+import { PagoRepository } from '../../infrastructure/database/repositories/pago.repository';
+import { EstadoPago, ProveedorPago } from '../../infrastructure/database/entities/pago.entity';
 
 @Injectable()
 export class PaymentApplicationService {
@@ -16,6 +18,7 @@ export class PaymentApplicationService {
   
   constructor(
     private readonly factoryRegistry: PaymentFactoryRegistry,
+    private readonly pagoRepository: PagoRepository,
   ) {}
 
   // Procesar un nuevo pago
@@ -32,29 +35,133 @@ export class PaymentApplicationService {
     const payment = new Payment(
       paymentId,
       dto.amount,
-      dto.currency || 'USD',
+      dto.currency || 'CLP',
       dto.provider,
       PaymentStatus.PENDING,
       dto.metadata,
       new Date()
     );
     
-    // Guardar pago en "base de datos"
+    // Guardar pago en "base de datos" en memoria
     this.payments.set(paymentId, payment);
     
+    // **NUEVO: Guardar en MySQL**
+    let pagoGuardado: any = null;
     try {
+      // Debug: ver qué datos llegan - DETALLADO
+      console.log('📝 ==========================================');
+      console.log('📝 DATOS DEL PAGO RECIBIDOS - DEBUG COMPLETO');
+      console.log('📝 ==========================================');
+      console.log('Provider:', dto.provider);
+      console.log('Amount:', dto.amount);
+      console.log('Currency:', dto.currency);
+      console.log('');
+      console.log('CardSecurity (objeto completo):');
+      console.log(JSON.stringify(dto.cardSecurity, null, 2));
+      console.log('');
+      console.log('Campos individuales de cardSecurity:');
+      console.log('  - cvv:', dto.cardSecurity?.cvv ? '***' : 'undefined');
+      console.log('  - cardHolderName:', dto.cardSecurity?.cardHolderName);
+      console.log('  - last4Digits:', dto.cardSecurity?.last4Digits);
+      console.log('  - expiryMonth:', dto.cardSecurity?.expiryMonth);
+      console.log('  - expiryYear:', dto.cardSecurity?.expiryYear);
+      console.log('');
+      console.log('Metadata:');
+      console.log('  - cartId:', dto.metadata?.cartId);
+      console.log('  - userId:', dto.metadata?.userId);
+      console.log('  - orderId:', dto.metadata?.orderId);
+      console.log('📝 ==========================================');
+
+      pagoGuardado = await this.pagoRepository.crearPago({
+        idUsuario: dto.metadata?.userId || 'anonymous',
+        idPedido: parseInt(dto.metadata?.orderId || dto.metadata?.idPedido || '0'),
+        idCarrito: dto.metadata?.cartId || 'cart_unknown',
+        monto: dto.amount,
+        tipoMoneda: dto.currency || 'CLP',
+        estado: EstadoPago.PENDING,
+        proveedor: dto.provider.toLowerCase() as ProveedorPago,
+        nombreTitular: dto.cardSecurity?.cardHolderName || dto.metadata?.cardholderName || null,
+        ultimosCuatroDigitos: dto.cardSecurity?.last4Digits || dto.metadata?.last4 || null,
+        descripcion: `Pago ${paymentId}`,
+      });
+
+      console.log('✅ Pago guardado en BD con ID:', pagoGuardado.idPagos);
+      console.log('   - Nombre titular:', pagoGuardado.nombreTitular);
+      console.log('   - Últimos 4 dígitos:', pagoGuardado.ultimosCuatroDigitos);
+      console.log('   - ID Carrito:', pagoGuardado.idCarrito);
+      console.log('   - ID Usuario:', pagoGuardado.idUsuario);
+    } catch (dbError) {
+      console.error('❌ Error al guardar pago en la base de datos:', dbError.message);
+      // Continuar con el procesamiento aunque falle el guardado en DB
+    }
+
+    try {
+      // Cambiar estado a PROCESSING antes de procesar
+      payment.updateStatus(PaymentStatus.PROCESSING);
+      
+      // 🔥 SIMULACIÓN DE ERROR: Si el monto es exactamente 666, lanzar error
+      if (dto.amount === 666) {
+        throw new Error('Tarjeta rechazada por el banco - Fondos insuficientes');
+      }
+      
       // Procesar pago con el proveedor correspondiente
       // const result = await processor.processPayment(dto);
-      
-      // Simular procesamiento exitoso
-      payment.updateStatus(PaymentStatus.PROCESSING);
       
       // En modo mock, marcar como completado inmediatamente
       payment.updateStatus(PaymentStatus.COMPLETED);
       
+      // **NUEVO: Actualizar estado en MySQL**
+      if (pagoGuardado) {
+        try {
+          await this.pagoRepository.actualizarEstadoPago(
+            pagoGuardado.idPagos,
+            EstadoPago.COMPLETED,
+            {
+              idTransaccionProveedor: `mock_${paymentId}`,
+            },
+          );
+        } catch (dbError) {
+          console.error('Error al actualizar pago en la base de datos:', dbError);
+        }
+      }
+      
       return payment;
     } catch (error) {
+      // Asegurarse de que el pago esté en PROCESSING antes de marcar como FAILED
+      if (payment.status === PaymentStatus.PENDING) {
+        payment.updateStatus(PaymentStatus.PROCESSING);
+      }
       payment.updateStatus(PaymentStatus.FAILED);
+      
+      // **NUEVO: Actualizar estado como fallido en MySQL y registrar error**
+      if (pagoGuardado) {
+        try {
+          // Marcar el pago como fallido
+          await this.pagoRepository.marcarComoFallido(
+            pagoGuardado.idPagos,
+            'PAYMENT_FAILED',
+            error.message,
+          );
+          
+          // Registrar en historial de errores
+          await this.pagoRepository.registrarError(
+            pagoGuardado.idPagos,
+            'PAYMENT_FAILED',
+            error.message || 'Error desconocido al procesar el pago',
+            dto.provider.toLowerCase(),
+            {
+              stack: error.stack,
+              paymentId: payment.id,
+              timestamp: new Date().toISOString(),
+            }
+          );
+          
+          console.log('❌ Error registrado en historial_de_errores');
+        } catch (dbError) {
+          console.error('Error al marcar pago como fallido en la base de datos:', dbError);
+        }
+      }
+      
       throw error;
     }
   }

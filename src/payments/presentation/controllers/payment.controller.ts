@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, Patch, HttpStatus, HttpCode, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Patch, HttpStatus, HttpCode, UseGuards, Req, HttpException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { PaymentApplicationService } from '../../application/services/payment-application.service';
 import { ProcessPaymentDto } from '../../application/dto/process-payment.dto';
@@ -307,6 +307,17 @@ export class PaymentController {
     @Body() dto: ProcessPaymentDto,
     @Req() request: Request,
   ) {
+    // 🔍 DEBUG: Ver el DTO RAW antes de cualquier procesamiento
+    console.log('🔍 ==========================================');
+    console.log('🔍 CONTROLADOR - DTO RECIBIDO (RAW)');
+    console.log('🔍 ==========================================');
+    console.log('DTO completo:', JSON.stringify(dto, null, 2));
+    console.log('dto.cardSecurity:', dto.cardSecurity);
+    console.log('Tipo de cardSecurity:', typeof dto.cardSecurity);
+    console.log('Es null?:', dto.cardSecurity === null);
+    console.log('Es undefined?:', dto.cardSecurity === undefined);
+    console.log('🔍 ==========================================');
+    
     const securityContext = (request as any).securityContext || {};
     const { userId, sessionId, ipAddress, userAgent } = securityContext;
 
@@ -335,9 +346,22 @@ export class PaymentController {
         dto.provider,
       );
 
-      // Procesar pago (CA2: CVV no se pasa al servicio de aplicación, solo se valida)
+      // Procesar pago (CA2: CVV no se almacena, pero sí el nombre y últimos 4 dígitos)
       const { cardSecurity, confirmationToken, ...paymentData } = dto;
-      const result = await this.paymentService.processPayment(paymentData as any);
+      
+      // Crear objeto cardSecurity sin CVV (solo datos permitidos para almacenar)
+      const cardSecurityWithoutCvv = cardSecurity ? {
+        last4Digits: cardSecurity.last4Digits,
+        cardHolderName: cardSecurity.cardHolderName,
+        expiryMonth: cardSecurity.expiryMonth,
+        expiryYear: cardSecurity.expiryYear,
+        // CVV NO se incluye - solo se valida, nunca se almacena
+      } : undefined;
+      
+      const result = await this.paymentService.processPayment({
+        ...paymentData,
+        cardSecurity: cardSecurityWithoutCvv
+      } as any);
 
       // Log de éxito (CA5)
       this.securityAuditService.logPaymentSuccess(
@@ -374,7 +398,16 @@ export class PaymentController {
         error.message,
       );
 
-      throw error;
+      // Lanzar excepción HTTP apropiada en lugar de error genérico
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.PAYMENT_REQUIRED,
+          message: error.message || 'Error al procesar el pago',
+          error: 'Payment Failed',
+          code: error.code || 'PAYMENT_FAILED',
+        },
+        HttpStatus.PAYMENT_REQUIRED,
+      );
     }
   }
 

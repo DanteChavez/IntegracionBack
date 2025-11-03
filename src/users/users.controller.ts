@@ -47,6 +47,8 @@ export class UsersController {
 
       // Retornar resumen completo
       return {
+        cartId: cartData.id,
+        userId: cartData.userId,
         items: cartData.items,
         subtotal: subtotal,
         iva: {

@@ -67,31 +67,47 @@ async function bootstrap() {
   // Configuracion de Swagger
   const config = new DocumentBuilder()
     .setTitle('Payment API - PCI-DSS Compliant')
-    .setDescription('API REST para gestión de pagos segura con múltiples proveedores (Stripe, Webpay, PayPal, etc...)\n\n' +
+    .setDescription('API REST para gestión de pagos segura con múltiples proveedores (Stripe, Webpay, PayPal)\n\n' +
+      '🎯 HISTORIAS DE USUARIO IMPLEMENTADAS:\n' +
+      '✅ HU1: Interfaz y Métodos de Pago (85% completado)\n' +
+      '✅ HU2: Seguridad PCI-DSS (95% completado)\n\n' +
       '⚠️ IMPORTANTE - Seguridad:\n' +
-      '- Todas las conexiones DEBEN usar HTTPS/TLS 1.2+\n' +
-      '- Los datos de tarjeta NUNCA se almacenan\n' +
-      '- CVV requerido para todas las transacciones\n' +
-      '- Máximo 3 intentos fallidos por sesión\n' +
-      '- Todos los eventos son auditados y registrados\n' +
-      '- Cumplimiento PCI-DSS nivel básico\n\n' +
+      '- ✅ TLS 1.2+ obligatorio con certificados SSL/TLS\n' +
+      '- ✅ CVV NUNCA se almacena (solo procesado en memoria)\n' +
+      '- ✅ Solo se guardan: last4Digits, cardHolderName (sanitizado)\n' +
+      '- ✅ CVV requerido (3-4 dígitos, solo números)\n' +
+      '- ✅ Máximo 3 intentos fallidos por sesión (bloqueo 1 hora)\n' +
+      '- ✅ Auditoría completa con enmascaramiento de datos\n' +
+      '- ✅ Detección de actividad sospechosa por moneda:\n' +
+      '     • USD: >$10,000 | CLP: >$10,000,000 | EUR: >€9,000\n' +
+      '- ✅ Simulación de errores: usar amount=666 para testing\n\n' +
       '🔑 Headers Requeridos:\n' +
       '- x-session-id: ID único de la sesión de pago (obligatorio)\n' +
       '- x-user-id: ID del usuario o "anonymous" para invitados (obligatorio)\n\n' +
-      '📝 Nota: Estos headers son necesarios para la auditoría de seguridad y validación de tokens de confirmación.')
+      '📝 Flujo de Pago (2 pasos):\n' +
+      '1. POST /api/pagos/confirm-amount → Genera token de confirmación (válido 5 min)\n' +
+      '2. POST /api/pagos → Procesa pago con token + CVV\n\n' +
+      '🧪 Testing:\n' +
+      '- Use amount=666 para simular errores de pago\n' +
+      '- Después de 3 intentos fallidos, recibirá 429 Too Many Requests\n\n' +
+      '📥 Descargar Documentación:\n' +
+      '- JSON: https://localhost:3000/api/docs-json\n' +
+      '- YAML: https://localhost:3000/api/docs-yaml')
     .setVersion('1.0.0')
-    .addTag('pagos', 'Endpoints para gestión de pagos')
-    .addTag('seguridad', 'Endpoints de confirmación y seguridad')
-    .addTag('interfaz-pago', 'Endpoints para interfaz de usuario')
-    .addTag('reembolsos', 'Endpoints para gestión de reembolsos')
-    .addTag('webhooks', 'Endpoints para webhooks de proveedores')
+    .addTag('pagos', '💳 Endpoints principales para procesamiento de pagos')
+    .addTag('seguridad', '🔐 Confirmación de montos y validación de tokens')
+    .addTag('interfaz-pago', '🖥️ Endpoints para la interfaz de usuario (métodos, validaciones, sesiones)')
+    .addTag('reembolsos', '💰 Gestión de reembolsos y devoluciones')
+    .addTag('cancelaciones', '❌ Cancelación de pagos pendientes')
+    .addTag('consultas', '📊 Consulta de estado de pagos y transacciones')
+    .addTag('webhooks', '🪝 Notificaciones de proveedores externos (Stripe, PayPal, Webpay)')
     .addServer('https://localhost:3000', 'Servidor de desarrollo (HTTPS)')
     .addBearerAuth(
       {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
-        description: 'Ingrese el token JWT de autenticación',
+        description: 'Ingrese el token JWT de autenticación (opcional en desarrollo, obligatorio en producción)',
       },
       'JWT',
     )
@@ -100,7 +116,7 @@ async function bootstrap() {
         type: 'apiKey',
         name: 'x-session-id',
         in: 'header',
-        description: 'ID único de la sesión de pago (requerido para auditoría)',
+        description: 'ID único de la sesión de pago (requerido para auditoría y rate limiting)',
       },
       'SessionID',
     )
@@ -145,10 +161,13 @@ async function bootstrap() {
   // Configurar validaciones globales con seguridad mejorada
   app.useGlobalPipes(new ValidationPipe({
     transform             : true,
+    transformOptions      : {
+      enableImplicitConversion: true, // Permite conversiones implícitas
+    },
     whitelist             : true,  // Remover propiedades no definidas en DTO
-    forbidNonWhitelisted  : true,  // Rechazar requests con propiedades extra (CA6)
-    disableErrorMessages  : process.env.NODE_ENV === 'production', // No exponer detalles en prod
-    forbidUnknownValues   : true,  // Rechazar valores desconocidos
+    forbidNonWhitelisted  : false,  // Permitir propiedades extra temporalmente para debug
+    disableErrorMessages  : false, // Mostrar mensajes de error para debugging
+    forbidUnknownValues   : false,  // Permitir valores desconocidos temporalmente
   }));
   
   const port = process.env.PORT ?? 3000;

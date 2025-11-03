@@ -13,18 +13,18 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
-    throw new NotImplementedException('Autenticación no implementada - MongoDB no configurado');
+    throw new NotImplementedException('Autenticación no implementada - Base de datos de usuarios no configurada');
   }
 
   async login(loginDto: LoginDto) {
-    throw new NotImplementedException('Login no implementado - MongoDB no configurado');
+    throw new NotImplementedException('Login no implementado - Base de datos de usuarios no configurada');
   }
 
   async register(registerDto: RegisterDto) {
-    throw new NotImplementedException('Registro no implementado - MongoDB no configurado');
+    throw new NotImplementedException('Registro no implementado - Base de datos de usuarios no configurada');
   }
 
   async me(userId: string) {
-    throw new NotImplementedException('Perfil de usuario no implementado - MongoDB no configurado');
+    throw new NotImplementedException('Perfil de usuario no implementado - Base de datos de usuarios no configurada');
   }
 }

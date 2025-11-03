@@ -1,4 +1,6 @@
 {
+  "id": "cart_020",
+  "userId": "user_123",
   "items": [
     {
       "id": "prod-001",
@@ -20,9 +22,9 @@
     },
     {
       "id": "prod-004",
-      "name": "Gran consolador anal",
+      "name": "Monitor 4K",
       "price": 149990,
-      "quantity": 1
+      "quantity": 2
     }
   ]
 }
