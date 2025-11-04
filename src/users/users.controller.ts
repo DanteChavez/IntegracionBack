@@ -1,16 +1,31 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { CreateUserDto } from './schemas/dto/create-user.dto';
-import { UpdateUserDto } from './schemas/dto/update-user.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Controller, Get } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import * as fs from 'fs';
 import * as path from 'path';
 
+@ApiTags('usuarios')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
-
+  /**
+   * Obtiene los datos del usuario actual desde archivo JSON
+   * @returns Datos del usuario
+   */
   @Get('current')
+  @ApiOperation({ 
+    summary: 'Obtener usuario actual',
+    description: 'Obtiene los datos del usuario desde usuario.json (mock data)'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Usuario encontrado',
+    schema: {
+      example: {
+        id: 'user_123',
+        name: 'Juan Pérez',
+        email: 'juan@ejemplo.com'
+      }
+    }
+  })
   getCurrentUser() {
     try {
       const dataPath = path.join(process.cwd(), 'src', 'data', 'usuario.json');
@@ -23,7 +38,46 @@ export class UsersController {
     }
   }
 
+  /**
+   * Obtiene el carrito del usuario con cálculo de IVA y total
+   * @returns Carrito con subtotal, IVA y total calculados
+   */
   @Get('cart')
+  @ApiOperation({ 
+    summary: 'Obtener carrito del usuario',
+    description: 'Obtiene el carrito desde carrito.json con cálculo automático de IVA (19%) y total'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Carrito con cálculos completos',
+    schema: {
+      example: {
+        cartId: 'cart_019',
+        userId: 'user_123',
+        items: [
+          {
+            id: 'prod-001',
+            name: 'Audífonos Pro',
+            price: 29990,
+            quantity: 2
+          }
+        ],
+        subtotal: 59980,
+        iva: {
+          rate: 0.19,
+          percentage: 19,
+          amount: 11396,
+          description: 'Impuesto al Valor Agregado (IVA)'
+        },
+        total: 71376,
+        currency: {
+          code: 'CLP',
+          symbol: '$',
+          name: 'Peso Chileno'
+        }
+      }
+    }
+  })
   getCart() {
     try {
       // Leer carrito
@@ -65,34 +119,5 @@ export class UsersController {
       console.error('❌ Error leyendo carrito:', error.message);
       throw error;
     }
-  }
-
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get()
-  findAll() {
-    return this.usersService.findAll();
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(id, updateUserDto);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
   }
 }

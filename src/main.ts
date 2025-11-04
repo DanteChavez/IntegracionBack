@@ -101,6 +101,7 @@ async function bootstrap() {
     .addTag('cancelaciones', '❌ Cancelación de pagos pendientes')
     .addTag('consultas', '📊 Consulta de estado de pagos y transacciones')
     .addTag('webhooks', '🪝 Notificaciones de proveedores externos (Stripe, PayPal, Webpay)')
+    .addTag('usuarios', '👤 Datos de usuario y carrito (solo lectura desde JSON de momento)')
     .addServer('https://localhost:3000', 'Servidor de desarrollo (HTTPS)')
     .addBearerAuth(
       {

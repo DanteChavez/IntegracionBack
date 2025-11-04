@@ -1,14 +1,17 @@
 ﻿// src/auth/auth.service.ts
 import { Injectable, NotImplementedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
+/**
+ * Servicio de autenticación simplificado
+ * Nota: Autenticación completa no implementada (fuera del alcance del sistema de pagos)
+ * Los endpoints lanzan NotImplementedException
+ */
 @Injectable()
 export class AuthService {
   constructor(
-    private usersService: UsersService,
     private jwtService: JwtService,
   ) {}
 

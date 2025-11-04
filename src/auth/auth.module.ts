@@ -5,11 +5,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { UsersModule } from '../users/users.module';
 
+/**
+ * Módulo de autenticación simplificado
+ * Nota: No incluye UsersModule ya que no hay gestión completa de usuarios
+ * Los endpoints lanzan NotImplementedException (fuera del alcance del sistema de pagos)
+ */
 @Module({
   imports: [
-    UsersModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

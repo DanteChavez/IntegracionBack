@@ -676,12 +676,48 @@ pnpm test:cov
 
 - **GET /api/auth/me**: Obtener información del usuario autenticado (requiere token JWT)
 
-### Usuarios
+### Usuarios (Solo lectura de datos mock)
 
-- **GET /api/users**: Obtener todos los usuarios (requiere token JWT)
-- **GET /api/users/:id**: Obtener un usuario por ID (requiere token JWT)
-- **PATCH /api/users/:id**: Actualizar un usuario (requiere token JWT)
-- **DELETE /api/users/:id**: Eliminar un usuario (requiere token JWT)
+⚠️ **Nota**: Este módulo está simplificado. Solo proporciona datos desde archivos JSON.
+No incluye gestión completa de usuarios (fuera del alcance del sistema de pagos).
+
+- **GET /api/users/current**: Obtener datos del usuario actual desde `usuario.json`
+  ```json
+  Response: {
+    "id": "user_123",
+    "name": "Juan Pérez",
+    "email": "juan@ejemplo.com"
+  }
+  ```
+
+- **GET /api/users/cart**: Obtener carrito con cálculo de IVA y total
+  ```json
+  Response: {
+    "cartId": "cart_019",
+    "userId": "user_123",
+    "items": [
+      {
+        "id": "prod-001",
+        "name": "Audífonos Pro",
+        "price": 29990,
+        "quantity": 2
+      }
+    ],
+    "subtotal": 59980,
+    "iva": {
+      "rate": 0.19,
+      "percentage": 19,
+      "amount": 11396,
+      "description": "Impuesto al Valor Agregado (IVA)"
+    },
+    "total": 71376,
+    "currency": {
+      "code": "CLP",
+      "symbol": "$",
+      "name": "Peso Chileno"
+    }
+  }
+  ```
 
 ### Pagos (PASO 2: Procesamiento Seguro)
 
@@ -1090,6 +1126,26 @@ lsof -ti:3000 | xargs kill -9
 **Solución**: Los certificados son autofirmados. Usa la bandera `-k` en curl o `NODE_TLS_REJECT_UNAUTHORIZED=0` en development.
 
 ## 📝 Changelog
+
+> Para un historial completo y detallado de cambios, consulta el archivo [CHANGELOG.md](./CHANGELOG.md)
+
+### v1.2.0 (2025-11-03) - Limpieza de Arquitectura 🧹
+- ✅ **Módulo Users simplificado**:
+  - Eliminados 5 endpoints CRUD no funcionales (71% de reducción)
+  - Solo endpoints útiles: `GET /current` y `GET /cart`
+  - Código más claro y mantenible
+- ✅ **Módulo Auth refactorizado**:
+  - Eliminada dependencia de `UsersService` inexistente
+  - JWT strategy simplificado (solo validación de token)
+  - Sin errores de compilación
+- ✅ **Swagger/OpenAPI mejorado**:
+  - Tag `'usuarios'` con documentación completa
+  - Solo endpoints funcionales documentados
+  - Ejemplos de respuesta actualizados
+- ✅ **Documentación precisa**:
+  - API refleja solo funcionalidad real del sistema
+  - Comentarios explicativos en código
+  - CHANGELOG.md creado con historial completo
 
 ### v1.1.0 (2025-11-03) - Mejoras de Seguridad y UX
 - ✅ **Fix crítico**: Detección de actividad sospechosa ahora considera la moneda
