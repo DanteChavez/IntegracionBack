@@ -69,12 +69,10 @@ export class PaymentApplicationService {
       console.log('Metadata:');
       console.log('  - cartId:', dto.metadata?.cartId);
       console.log('  - userId:', dto.metadata?.userId);
-      console.log('  - orderId:', dto.metadata?.orderId);
       console.log('📝 ==========================================');
 
       pagoGuardado = await this.pagoRepository.crearPago({
         idUsuario: dto.metadata?.userId || 'anonymous',
-        idPedido: parseInt(dto.metadata?.orderId || dto.metadata?.idPedido || '0'),
         idCarrito: dto.metadata?.cartId || 'cart_unknown',
         monto: dto.amount,
         tipoMoneda: dto.currency || 'CLP',
@@ -96,6 +94,9 @@ export class PaymentApplicationService {
     }
 
     try {
+      // Generar ID de transacción antes de procesar (disponible incluso si falla)
+      const transactionId = `${dto.provider.toLowerCase()}_${paymentId}`;
+      
       // Cambiar estado a PROCESSING antes de procesar
       payment.updateStatus(PaymentStatus.PROCESSING);
       
@@ -117,7 +118,7 @@ export class PaymentApplicationService {
             pagoGuardado.idPagos,
             EstadoPago.COMPLETED,
             {
-              idTransaccionProveedor: `mock_${paymentId}`,
+              idTransaccionProveedor: transactionId,
             },
           );
         } catch (dbError) {
@@ -127,6 +128,9 @@ export class PaymentApplicationService {
       
       return payment;
     } catch (error) {
+      // Generar ID de transacción fallida
+      const failedTransactionId = `failed_${dto.provider.toLowerCase()}_${paymentId}`;
+      
       // Asegurarse de que el pago esté en PROCESSING antes de marcar como FAILED
       if (payment.status === PaymentStatus.PENDING) {
         payment.updateStatus(PaymentStatus.PROCESSING);
@@ -136,11 +140,12 @@ export class PaymentApplicationService {
       // **NUEVO: Actualizar estado como fallido en MySQL y registrar error**
       if (pagoGuardado) {
         try {
-          // Marcar el pago como fallido
+          // Marcar el pago como fallido CON ID DE TRANSACCIÓN
           await this.pagoRepository.marcarComoFallido(
             pagoGuardado.idPagos,
             'PAYMENT_FAILED',
             error.message,
+            failedTransactionId, // ✅ Guardar ID de transacción fallida
           );
           
           // Registrar en historial de errores

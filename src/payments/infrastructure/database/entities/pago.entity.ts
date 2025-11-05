@@ -19,9 +19,6 @@ export class PagoEntity {
   @PrimaryGeneratedColumn({ name: 'id_pagos' })
   idPagos: number;
 
-  @Column({ name: 'id_pedido', type: 'int' })
-  idPedido: number;
-
   @Column({ name: 'id_usuario', type: 'varchar', length: 45 })
   idUsuario: string;
 

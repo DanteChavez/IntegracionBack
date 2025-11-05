@@ -61,10 +61,18 @@ export class PagoRepository {
     idPagos: number,
     codigoError: string,
     mensajeError: string,
+    idTransaccionProveedor?: string,
   ): Promise<PagoEntity> {
-    return await this.actualizarEstadoPago(idPagos, EstadoPago.FAILED, {
+    const updateData: any = {
       descripcion: `${codigoError}: ${mensajeError}`,
-    });
+    };
+    
+    // Si se proporciona ID de transacción, guardarlo
+    if (idTransaccionProveedor) {
+      updateData.idTransaccionProveedor = idTransaccionProveedor;
+    }
+    
+    return await this.actualizarEstadoPago(idPagos, EstadoPago.FAILED, updateData);
   }
 
   /**
@@ -89,17 +97,7 @@ export class PagoRepository {
   }
 
   /**
-   * Obtener todos los pagos de un pedido específico
-   */
-  async obtenerPagosPorPedido(idPedido: number): Promise<PagoEntity[]> {
-    return await this.pagoRepo.find({
-      where: { idPedido },
-      order: { fechaCreacion: 'DESC' },
-    });
-  }
-
-  /**
-   * Obtener todos los pagos de un usuario específico
+   * Obtener pagos por usuario
    */
   async obtenerPagosPorUsuario(idUsuario: string): Promise<PagoEntity[]> {
     return await this.pagoRepo.find({

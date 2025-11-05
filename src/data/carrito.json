@@ -1,30 +1,12 @@
 {
-  "id": "cart_023",
+  "id": "cart_02",
   "userId": "user_123",
   "items": [
     {
-      "id": "prod-001",
-      "name": "Audífonos Pro",
-      "price": 29990,
+      "id": "prod-test",
+      "name": "Producto de prueba para error",
+      "price": 666,
       "quantity": 1
-    },
-    {
-      "id": "prod-002",
-      "name": "Mouse Inalámbrico",
-      "price": 14990,
-      "quantity": 1
-    },
-    {
-      "id": "prod-003",
-      "name": "Teclado Mecánico",
-      "price": 49990,
-      "quantity": 1
-    },
-    {
-      "id": "prod-004",
-      "name": "Monitor 4K",
-      "price": 149990,
-      "quantity": 2
     }
   ]
 }
