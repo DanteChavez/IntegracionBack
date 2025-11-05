@@ -1,0 +1,167 @@
+# ===================================================================
+# 🧪 API Testing - Sistema de Pagos PulgaShop
+# ===================================================================
+# 
+# Este archivo utiliza la extensión "REST Client" para VS Code
+# Instalación: Busca "REST Client" por Huachao Mao en el marketplace
+#
+# 📖 CÓMO USAR:
+# 1. Asegúrate de que el backend esté corriendo: npm run start:dev
+# 2. Verás un texto azul "Send Request" sobre cada endpoint
+# 3. Haz click en "Send Request" o presiona Ctrl+Alt+R
+# 4. La respuesta aparecerá en una nueva pestaña a la derecha
+#
+# 💡 TIPS:
+# - Usa ### para separar peticiones
+# - Las variables se definen con @ y se usan con {{variable}}
+# - Puedes copiar tokens de respuestas y pegarlos en siguientes requests
+# - Ignora warnings de certificado SSL (localhost autofirmado)
+#
+# 🔥 FLUJO RECOMENDADO:
+# 1. Test #2: Confirmar monto       → Obtén confirmationToken
+# 2. Test #4: Procesar pago exitoso → Pega el token del paso 1
+# 3. Test #3: Confirmar monto 666   → Obtén token de error
+# 4. Test #5: Procesar pago fallido → Pega el token del paso 3
+#
+# ===================================================================
+
+### Variables
+@baseUrl = https://localhost:3000/api/pagos
+@sessionId = session_test_123
+@userId = user_test_123
+
+### 1. Test: Obtener métodos de pago disponibles
+GET {{baseUrl}}/payment-methods
+x-session-id: {{sessionId}}
+x-user-id: {{userId}}
+
+###
+
+### 2. Test: Confirmar monto
+POST {{baseUrl}}/confirm-amount
+Content-Type: application/json
+x-session-id: {{sessionId}}
+x-user-id: {{userId}}
+
+{
+  "amount": 100000,
+  "currency": "CLP",
+  "provider": "stripe",
+  "description": "Test normal",
+  "metadata": {
+    "cartId": "cart_test",
+    "userId": "user_test"
+  }
+}
+
+###
+
+### 3. Test: ERROR SIMULADO (amount = 666)
+POST {{baseUrl}}/confirm-amount
+Content-Type: application/json
+x-session-id: {{sessionId}}
+x-user-id: {{userId}}
+
+{
+  "amount": 666,
+  "currency": "CLP",
+  "provider": "stripe",
+  "description": "Test error simulado - amount = 666",
+  "metadata": {
+    "cartId": "cart_test",
+    "userId": "user_test"
+  }
+}
+
+###
+
+### 4. Test: Procesar pago EXITOSO ✅
+# Primero ejecuta el Test #2 para obtener un token, luego copia el confirmationToken aquí
+POST {{baseUrl}}
+Content-Type: application/json
+x-session-id: {{sessionId}}
+x-user-id: {{userId}}
+
+{
+  "amount": 100000,
+  "currency": "CLP",
+  "provider": "stripe",
+  "confirmationToken": "PEGA_EL_TOKEN_AQUI",
+  "customerId": "cus_test_123",
+  "description": "Pago test - exitoso",
+  "cardSecurity": {
+    "cvv": "123",
+    "last4Digits": "4242",
+    "cardHolderName": "JUAN PEREZ",
+    "expiryMonth": 12,
+    "expiryYear": 2025
+  },
+  "metadata": {
+    "cartId": "cart_test",
+    "userId": "user_test"
+  }
+}
+
+###
+
+### 5. Test: Procesar pago con ERROR SIMULADO ❌ (amount = 666)
+# Primero ejecuta el Test #3 (error 666) para obtener un token, luego copia aquí
+POST {{baseUrl}}
+Content-Type: application/json
+x-session-id: {{sessionId}}
+x-user-id: {{userId}}
+
+{
+  "amount": 666,
+  "currency": "CLP",
+  "provider": "stripe",
+  "confirmationToken": "conf_f6b302ce3657e24303cd17f8a10aaa63",
+  "customerId": "cus_test_123",
+  "description": "Pago test - error simulado",
+  "cardSecurity": {
+    "cvv": "123",
+    "last4Digits": "4242",
+    "cardHolderName": "JUAN PEREZ",
+    "expiryMonth": 12,
+    "expiryYear": 2025
+  },
+  "metadata": {
+    "cartId": "cart_test",
+    "userId": "user_test"
+  }
+}
+
+###
+
+### 6. Test: Actividad sospechosa (monto muy alto en CLP)
+POST {{baseUrl}}/confirm-amount
+Content-Type: application/json
+x-session-id: {{sessionId}}
+x-user-id: {{userId}}
+
+{
+  "amount": 15000000,
+  "currency": "CLP",
+  "provider": "stripe",
+  "description": "Test actividad sospechosa",
+  "metadata": {
+    "cartId": "cart_test",
+    "userId": "user_test"
+  }
+}
+
+###
+
+### 7. Test: Obtener carrito
+GET https://localhost:3000/api/users/cart
+x-session-id: {{sessionId}}
+x-user-id: {{userId}}
+
+###
+
+### 8. Test: Obtener usuario actual
+GET https://localhost:3000/api/users/current
+x-session-id: {{sessionId}}
+x-user-id: {{userId}}
+
+###
