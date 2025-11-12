@@ -1,6 +1,6 @@
 {
   "iva": {
-    "rate": 0,
+    "rate": 0.19,
     "description": "Impuesto al Valor Agregado (IVA)",
     "country": "Chile"
   },
