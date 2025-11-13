@@ -28,7 +28,8 @@ export class UsersController {
   })
   getCurrentUser() {
     try {
-      const dataPath = path.join(process.cwd(), 'src', 'data', 'usuario.json');
+      // Usar __dirname para obtener la ruta relativa al archivo compilado
+      const dataPath = path.join(__dirname, '..', '..', 'src', 'data', 'usuario.json');
       const fileContent = fs.readFileSync(dataPath, 'utf-8');
       const userData = JSON.parse(fileContent);
       return userData;
@@ -80,12 +81,12 @@ export class UsersController {
   })
   getCart() {
     try {
-      // Leer carrito
-      const cartPath = path.join(process.cwd(), 'src', 'data', 'carrito.json');
+      // Usar __dirname para obtener rutas relativas al archivo compilado
+      const cartPath = path.join(__dirname, '..', '..', 'src', 'data', 'carrito.json');
       const cartData = JSON.parse(fs.readFileSync(cartPath, 'utf-8'));
 
       // Leer configuración de impuestos
-      const taxConfigPath = path.join(process.cwd(), 'src', 'config', 'tax.config.json');
+      const taxConfigPath = path.join(__dirname, '..', '..', 'src', 'config', 'tax.config.json');
       const taxConfig = JSON.parse(fs.readFileSync(taxConfigPath, 'utf-8'));
 
       // Calcular subtotal
