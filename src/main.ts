@@ -70,7 +70,8 @@ async function bootstrap() {
     .setDescription('API REST para gestión de pagos segura con múltiples proveedores (Stripe, Webpay, PayPal)\n\n' +
       '🎯 HISTORIAS DE USUARIO IMPLEMENTADAS:\n' +
       '✅ HU1: Interfaz y Métodos de Pago (85% completado)\n' +
-      '✅ HU2: Seguridad PCI-DSS (95% completado)\n\n' +
+      '✅ HU2: Seguridad PCI-DSS (95% completado)\n' +
+      '✅ HU4: Pago con PayPal (100% completado)\n\n' +
       '⚠️ IMPORTANTE - Seguridad:\n' +
       '- ✅ TLS 1.2+ obligatorio con certificados SSL/TLS\n' +
       '- ✅ CVV NUNCA se almacena (solo procesado en memoria)\n' +
@@ -81,20 +82,34 @@ async function bootstrap() {
       '- ✅ Detección de actividad sospechosa por moneda:\n' +
       '     • USD: >$10,000 | CLP: >$10,000,000 | EUR: >€9,000\n' +
       '- ✅ Simulación de errores: usar amount=666 para testing\n\n' +
+      '💙 PAGO CON PAYPAL (HU4):\n' +
+      '- ✅ Arquitectura Backend-First (credenciales SOLO en servidor)\n' +
+      '- ✅ Integración con PayPal SDK oficial\n' +
+      '- ✅ Redirección segura a PayPal Sandbox/Live\n' +
+      '- ✅ Captura automática de pagos aprobados\n' +
+      '- ✅ Webhooks para notificaciones asíncronas\n' +
+      '- ✅ Soporte para reembolsos completos y parciales\n' +
+      '- ✅ Metadata JSON con trazabilidad completa\n\n' +
       '🔑 Headers Requeridos:\n' +
       '- x-session-id: ID único de la sesión de pago (obligatorio)\n' +
       '- x-user-id: ID del usuario o "anonymous" para invitados (obligatorio)\n\n' +
       '📝 Flujo de Pago (2 pasos):\n' +
       '1. POST /api/pagos/confirm-amount → Genera token de confirmación (válido 5 min)\n' +
       '2. POST /api/pagos → Procesa pago con token + CVV\n\n' +
+      '💳 Flujo PayPal (3 pasos):\n' +
+      '1. POST /api/paypal/create-payment → Crea orden y obtiene approvalUrl\n' +
+      '2. Usuario aprueba en PayPal Sandbox (redireccionado)\n' +
+      '3. POST /api/paypal/execute-payment → Captura pago aprobado\n\n' +
       '🧪 Testing:\n' +
       '- Use amount=666 para simular errores de pago\n' +
-      '- Después de 3 intentos fallidos, recibirá 429 Too Many Requests\n\n' +
+      '- Después de 3 intentos fallidos, recibirá 429 Too Many Requests\n' +
+      '- PayPal Sandbox: use cuentas de prueba del Developer Dashboard\n\n' +
       '📥 Descargar Documentación:\n' +
       '- JSON: https://localhost:3000/api/docs-json\n' +
       '- YAML: https://localhost:3000/api/docs-yaml')
     .setVersion('1.0.0')
     .addTag('pagos', '💳 Endpoints principales para procesamiento de pagos')
+    .addTag('paypal', '💙 Integración con PayPal (HU4 - Completo)')
     .addTag('seguridad', '🔐 Confirmación de montos y validación de tokens')
     .addTag('interfaz-pago', '🖥️ Endpoints para la interfaz de usuario (métodos, validaciones, sesiones)')
     .addTag('reembolsos', '💰 Gestión de reembolsos y devoluciones')

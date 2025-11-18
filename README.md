@@ -30,12 +30,26 @@ Backend desarrollado con **NestJS** que implementa un sistema robusto de procesa
 - ✅ Captura de datos de tarjeta (last4Digits, cardHolderName)
 - ✅ Validación CVV mejorada (4 dígitos máx, solo números)
 
+### 💙 Pago con PayPal (Historia de Usuario 4) - 100% Completado
+- ✅ **CA1**: Selección de PayPal como método de pago
+- ✅ **CA2**: Redirección automática a PayPal Sandbox/Live
+- ✅ **CA3**: Captura de consentimiento del usuario en PayPal
+- ✅ **CA4**: Confirmación de pago exitoso tras aprobación
+- ✅ **CA5**: Actualización de estado de pedido en base de datos
+- ✅ **CA6**: Gestión de cancelación por parte del usuario
+- ✅ **CA7**: Webhooks para notificaciones asíncronas
+- ✅ **CA8**: Registro completo de transacciones con metadata
+- ✅ **CA9**: Soporte para reembolsos completos y parciales
+- ✅ **Arquitectura Backend-First**: Credenciales SOLO en servidor
+- ✅ **PayPal SDK oficial**: Integración completa con @paypal/checkout-server-sdk
+- ✅ **Metadata JSON**: Trazabilidad completa (PayPal Order ID, Capture ID, Payer Email)
+
 ### 📚 Documentación y APIs
 - ✅ Swagger UI interactivo en `/api/docs`
 - ✅ **Descarga de documentación** en JSON (`/api/docs-json`) y YAML (`/api/docs-yaml`)
 - ✅ Ejemplos completos para cada proveedor (Stripe, PayPal, Webpay)
 - ✅ Autenticación JWT integrada con headers x-session-id y x-user-id
-- ✅ Tags organizados: pagos, seguridad, interfaz-pago, reembolsos, webhooks, consultas, cancelaciones
+- ✅ Tags organizados: pagos, **paypal**, seguridad, interfaz-pago, reembolsos, webhooks, consultas, cancelaciones
 
 ## 🚀 Tecnologías y Stack
 

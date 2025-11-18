@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PaymentsModule } from './payments/payments.module';
 import { UsersModule } from './users/users.module';
+import paypalConfig from './config/paypal.config';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { UsersModule } from './users/users.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      load: [paypalConfig],
     }),
     // TypeORM con MySQL
     TypeOrmModule.forRoot({

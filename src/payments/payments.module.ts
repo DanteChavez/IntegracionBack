@@ -4,6 +4,7 @@ import { ThrottlerModule }              from '@nestjs/throttler';
 import { TypeOrmModule }                from '@nestjs/typeorm';
 import { PaymentController }            from './presentation/controllers/payment.controller';
 import { WebhookController }            from './presentation/controllers/webhook.controller';
+import { PayPalController }             from './presentation/controllers/paypal.controller';
 import { PaymentApplicationService }    from './application/services/payment-application.service';
 import { PaymentFactoryRegistry }       from './infrastructure/factories/payment-factory-registry.service';
 import { SecurityAuditService }         from './infrastructure/services/security-audit.service';
@@ -20,6 +21,7 @@ import {
 import { StripePaymentProcessor }  from './infrastructure/processors/stripe-payment.processor';
 import { PayPalPaymentProcessor }  from './infrastructure/processors/paypal-payment.processor';
 import { WebpayPaymentProcessor }  from './infrastructure/processors/webpay-payment.processor';
+import { PayPalRealProcessor }     from './infrastructure/processors/paypal-real.processor';
 
 // Payment Factories
 import { StripePaymentFactory }    from './infrastructure/factories/stripe-payment.factory';
@@ -52,6 +54,7 @@ import { PagoRepository }          from './infrastructure/database/repositories/
   controllers: [
     PaymentController,
     WebhookController,
+    PayPalController,
   ],
   providers: [
     // Servicios de aplicación
@@ -72,6 +75,7 @@ import { PagoRepository }          from './infrastructure/database/repositories/
     StripePaymentProcessor,
     PayPalPaymentProcessor,
     WebpayPaymentProcessor,
+    PayPalRealProcessor,
     
     // Payment Factories
     StripePaymentFactory,
