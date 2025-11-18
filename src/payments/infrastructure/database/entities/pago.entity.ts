@@ -6,6 +6,7 @@ export enum EstadoPago {
   PROCESSING = 'PROCESSING',
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
 }
 
 export enum ProveedorPago {
@@ -73,6 +74,9 @@ export class PagoEntity {
 
   @Column({ name: 'monto_reembolsado', type: 'decimal', precision: 10, scale: 2, nullable: true })
   montoReembolsado: number;
+
+  @Column({ name: 'metadata', type: 'json', nullable: true })
+  metadata: any;
 
   @UpdateDateColumn({ name: 'fecha_actualizacion', type: 'datetime' })
   fechaActualizacion: Date;

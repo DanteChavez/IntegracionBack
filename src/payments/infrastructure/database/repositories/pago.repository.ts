@@ -125,4 +125,82 @@ export class PagoRepository {
       order: { fecha: 'DESC' },
     });
   }
+
+  /**
+   * Marcar un pago como exitoso (para PayPal)
+   * Busca por metadata.paypalOrderId y actualiza el estado
+   */
+  async marcarComoExitoso(
+    paypalOrderId: string,
+    transactionId: string,
+    metadata?: any,
+  ): Promise<PagoEntity> {
+    // Buscar el pago por paypalOrderId en metadata
+    const pagos = await this.pagoRepo
+      .createQueryBuilder('pago')
+      .where("JSON_EXTRACT(pago.metadata, '$.paypalOrderId') = :orderId", {
+        orderId: paypalOrderId,
+      })
+      .getMany();
+
+    if (!pagos || pagos.length === 0) {
+      throw new Error(`Pago con PayPal Order ID ${paypalOrderId} no encontrado`);
+    }
+
+    const pago = pagos[0];
+    pago.estado = EstadoPago.COMPLETED;
+    pago.idTransaccionProveedor = transactionId;
+    pago.metadata = { ...pago.metadata, ...metadata };
+    pago.fechaActualizacion = new Date();
+
+    return await this.pagoRepo.save(pago);
+  }
+
+  /**
+   * Marcar un pago como reembolsado (para PayPal)
+   */
+  async marcarComoReembolsado(
+    captureId: string,
+    refundId: string,
+  ): Promise<PagoEntity> {
+    const pago = await this.pagoRepo.findOne({
+      where: { idTransaccionProveedor: captureId },
+    });
+
+    if (!pago) {
+      throw new Error(`Pago con capture ID ${captureId} no encontrado`);
+    }
+
+    pago.estado = EstadoPago.REFUNDED;
+    pago.metadata = { ...pago.metadata, refundId, refundDate: new Date() };
+    pago.fechaActualizacion = new Date();
+
+    return await this.pagoRepo.save(pago);
+  }
+
+  /**
+   * Marcar un pago de PayPal como fallido por Order ID
+   */
+  async marcarPayPalComoFallido(
+    paypalOrderId: string,
+    reason: string,
+  ): Promise<PagoEntity> {
+    const pagos = await this.pagoRepo
+      .createQueryBuilder('pago')
+      .where("JSON_EXTRACT(pago.metadata, '$.paypalOrderId') = :orderId", {
+        orderId: paypalOrderId,
+      })
+      .getMany();
+
+    if (!pagos || pagos.length === 0) {
+      throw new Error(`Pago con PayPal Order ID ${paypalOrderId} no encontrado`);
+    }
+
+    const pago = pagos[0];
+    pago.estado = EstadoPago.FAILED;
+    pago.descripcion = reason;
+    pago.fechaActualizacion = new Date();
+
+    return await this.pagoRepo.save(pago);
+  }
 }
