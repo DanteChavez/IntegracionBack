@@ -4,8 +4,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import * as fs from 'fs';
 import helmet from 'helmet';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
+  const port = 6161;
   // Configuración de HTTPS con TLS 1.2+ (CA1)
   const httpsOptions = {
     key: fs.readFileSync('./secrets/pulgashopkey.pem'),
@@ -26,6 +28,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     httpsOptions,
   });
+  
+  const configService = app.get(ConfigService);
   
   // Helmet: Headers de seguridad HTTP (CA1, CA6)
   app.use(
@@ -53,7 +57,7 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   
   // CORS configurado de forma segura
-  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3001', 'https://localhost:3001'];
+  const allowedOrigins = configService.get<string>('ALLOWED_ORIGINS')?.split(',') || ['http://localhost:3001', 'https://localhost:3001'];
   console.log('🌐 CORS Allowed Origins:', allowedOrigins);
   
   app.enableCors({
@@ -105,8 +109,8 @@ async function bootstrap() {
       '- Después de 3 intentos fallidos, recibirá 429 Too Many Requests\n' +
       '- PayPal Sandbox: use cuentas de prueba del Developer Dashboard\n\n' +
       '📥 Descargar Documentación:\n' +
-      '- JSON: https://localhost:3000/api/docs-json\n' +
-      '- YAML: https://localhost:3000/api/docs-yaml')
+      '- JSON: https://localhost:${port}/api/docs-json\n' +
+      '- YAML: https://localhost:${port}/api/docs-yaml')
     .setVersion('1.0.0')
     .addTag('pagos', '💳 Endpoints principales para procesamiento de pagos')
     .addTag('paypal', '💙 Integración con PayPal (HU4 - Completo)')
@@ -117,7 +121,7 @@ async function bootstrap() {
     .addTag('consultas', '📊 Consulta de estado de pagos y transacciones')
     .addTag('webhooks', '🪝 Notificaciones de proveedores externos (Stripe, PayPal, Webpay)')
     .addTag('usuarios', '👤 Datos de usuario y carrito (solo lectura desde JSON de momento)')
-    .addServer('https://localhost:3000', 'Servidor de desarrollo (HTTPS)')
+    .addServer(`https://localhost:${port}`, 'Servidor de desarrollo (HTTPS)')
     .addBearerAuth(
       {
         type: 'http',
@@ -186,7 +190,6 @@ async function bootstrap() {
     forbidUnknownValues   : false,  // Permitir valores desconocidos temporalmente
   }));
   
-  const port = process.env.PORT ?? 3000;
   await app.listen(port);
   
   console.log(`\n🔒 Payment API running securely on: https://localhost:${port}/api`);
