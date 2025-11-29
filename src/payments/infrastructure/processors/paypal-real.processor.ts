@@ -68,7 +68,7 @@ export class PayPalRealProcessor {
           {
             amount: {
               currency_code: currency,
-              value: (amount / 100).toFixed(2),  // ⚠️ SE MANTIENE IGUAL
+              value: (amount / 1000).toFixed(2),  // ⚠️ SE CAMBIO
             },
             description: `Pedido #${metadata.sessionId || 'N/A'}`,
             custom_id: metadata.sessionId,
@@ -122,7 +122,7 @@ export class PayPalRealProcessor {
         success: true,
         transactionId: capture.id,
         status: capture.status,
-        amount: parseFloat(capture.amount.value) * 100,
+        amount: parseFloat(capture.amount.value) * 1000, // ⚠️ SE CAMBIO
         currency: capture.amount.currency_code,
         payerId: captureData.payer.payer_id,
         payerEmail: captureData.payer.email_address,
@@ -153,7 +153,7 @@ export class PayPalRealProcessor {
         request.requestBody({
           amount: {
             currency_code: currency,
-            value: (amount / 100).toFixed(2),
+            value: (amount / 1000).toFixed(2), // ⚠️ SE CAMBIO
           },
         });
       }
@@ -167,7 +167,7 @@ export class PayPalRealProcessor {
         success: true,
         refundId: refund.id,
         status: refund.status,
-        amount: parseFloat(refund.amount.value) * 100,
+        amount: parseFloat(refund.amount.value) * 1000, // ⚠️ SE CAMBIO
         currency: refund.amount.currency_code,
       };
     } catch (error) {
