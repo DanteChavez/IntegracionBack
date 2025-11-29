@@ -4,10 +4,7 @@ import * as paypal from '@paypal/checkout-server-sdk';
 
 /**
  * PayPal Payment Processor - Integración Real con PayPal SDK
- * HU4: Pago con PayPal
- * 
- * Implementa la integración completa con PayPal usando el SDK oficial
- * Maneja creación de pagos, ejecución y webhooks
+ * Soporta CLP correctamente (sin decimales) y USD con decimales.
  */
 @Injectable()
 export class PayPalRealProcessor {
@@ -27,16 +24,10 @@ export class PayPalRealProcessor {
       const clientSecret = this.configService.get<string>('PAYPAL_CLIENT_SECRET');
       const mode = this.configService.get<string>('PAYPAL_MODE', 'sandbox');
 
-      this.logger.log(`🔑 PayPal Config - Mode: ${mode}`);
-      this.logger.log(`🔑 PayPal Config - Client ID length: ${clientId?.length || 0}`);
-      this.logger.log(`🔑 PayPal Config - Secret length: ${clientSecret?.length || 0}`);
-      this.logger.log(`🔑 PayPal Config - Client ID starts with: ${clientId?.substring(0, 10)}...`);
-
       if (!clientId || !clientSecret) {
         throw new Error('PayPal credentials not configured');
       }
 
-      // Configurar entorno (sandbox o production)
       let environment;
       if (mode === 'production') {
         environment = new paypal.core.LiveEnvironment(clientId, clientSecret);
@@ -45,7 +36,7 @@ export class PayPalRealProcessor {
       }
 
       this.client = new paypal.core.PayPalHttpClient(environment);
-      
+
       this.logger.log(`✅ PayPal Client initialized in ${mode} mode`);
     } catch (error) {
       this.logger.error('❌ Failed to initialize PayPal client:', error.message);
@@ -54,20 +45,26 @@ export class PayPalRealProcessor {
   }
 
   /**
-   * Crea una orden de pago en PayPal
-   * CA1, CA2: Permite seleccionar PayPal y redirige al entorno seguro
+   * Crea una orden de pago (CLP soportado)
    */
   async createPayment(amount: number, currency: string, metadata: any) {
     try {
       const request = new paypal.orders.OrdersCreateRequest();
       request.prefer('return=representation');
+
+      // CLP no tiene decimales → PayPal requiere ENTERO
+      const formattedAmount =
+        currency === 'CLP'
+          ? amount.toString() // ejemplo: 793
+          : (amount / 100).toFixed(2); // ejemplo USD: 793 → 7.93
+
       request.requestBody({
         intent: 'CAPTURE',
         purchase_units: [
           {
             amount: {
               currency_code: currency,
-              value: (amount / 100).toFixed(2), // Convertir de centavos a unidad
+              value: formattedAmount,
             },
             description: `Pedido #${metadata.sessionId || 'N/A'}`,
             custom_id: metadata.sessionId,
@@ -86,8 +83,7 @@ export class PayPalRealProcessor {
       const response = await this.client.execute(request);
       const order = response.result;
 
-      // CA3: Obtener el link de aprobación para redirigir al usuario
-      const approvalLink = order.links.find(link => link.rel === 'approve');
+      const approvalLink = order.links.find((link) => link.rel === 'approve');
 
       this.logger.log(`✅ PayPal order created: ${order.id}`);
 
@@ -105,7 +101,6 @@ export class PayPalRealProcessor {
 
   /**
    * Captura (ejecuta) un pago aprobado por el usuario
-   * CA4: Valida el token de autenticación devuelto por PayPal
    */
   async capturePayment(orderId: string) {
     try {
@@ -115,8 +110,16 @@ export class PayPalRealProcessor {
       const response = await this.client.execute(request);
       const captureData = response.result;
 
-      // Extraer información de la transacción
       const capture = captureData.purchase_units[0].payments.captures[0];
+
+      const currency = capture.amount.currency_code;
+      const rawValue = capture.amount.value; // string
+
+      // Normalizar monto para devolverlo al sistema interno
+      const normalizedAmount =
+        currency === 'CLP'
+          ? parseInt(rawValue) // CLP → no decimales
+          : Math.round(parseFloat(rawValue) * 100); // USD → centavos
 
       this.logger.log(`✅ PayPal payment captured: ${capture.id}`);
 
@@ -124,8 +127,8 @@ export class PayPalRealProcessor {
         success: true,
         transactionId: capture.id,
         status: capture.status,
-        amount: parseFloat(capture.amount.value) * 100, // Convertir a centavos
-        currency: capture.amount.currency_code,
+        amount: normalizedAmount,
+        currency,
         payerId: captureData.payer.payer_id,
         payerEmail: captureData.payer.email_address,
         createTime: capture.create_time,
@@ -143,7 +146,6 @@ export class PayPalRealProcessor {
     try {
       const request = new paypal.orders.OrdersGetRequest(orderId);
       const response = await this.client.execute(request);
-      
       return response.result;
     } catch (error) {
       this.logger.error('❌ Error getting PayPal order details:', error);
@@ -152,18 +154,22 @@ export class PayPalRealProcessor {
   }
 
   /**
-   * Reembolsa una transacción de PayPal
-   * CA9: Permite la reversión del pago
+   * Reembolsa una transacción (Refund)
    */
   async refundPayment(captureId: string, amount?: number, currency?: string) {
     try {
       const request = new paypal.payments.CapturesRefundRequest(captureId);
-      
+
       if (amount && currency) {
+        const formatted =
+          currency === 'CLP'
+            ? amount.toString()
+            : (amount / 100).toFixed(2);
+
         request.requestBody({
           amount: {
             currency_code: currency,
-            value: (amount / 100).toFixed(2),
+            value: formatted,
           },
         });
       }
@@ -177,8 +183,8 @@ export class PayPalRealProcessor {
         success: true,
         refundId: refund.id,
         status: refund.status,
-        amount: parseFloat(refund.amount.value) * 100,
-        currency: refund.amount.currency_code,
+        amount: refund.amount?.value,
+        currency: refund.amount?.currency_code,
       };
     } catch (error) {
       this.logger.error('❌ Error refunding PayPal payment:', error);
