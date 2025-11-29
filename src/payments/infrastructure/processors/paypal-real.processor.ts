@@ -67,7 +67,7 @@ export class PayPalRealProcessor {
           {
             amount: {
               currency_code: currency,
-              value: (amount / 1000).toFixed(2), // Convertir de centavos a unidad
+              value: (amount / 100).toFixed(2), // Convertir de centavos a unidad
             },
             description: `Pedido #${metadata.sessionId || 'N/A'}`,
             custom_id: metadata.sessionId,
@@ -163,7 +163,7 @@ export class PayPalRealProcessor {
         request.requestBody({
           amount: {
             currency_code: currency,
-            value: (amount / 1000).toFixed(2),
+            value: (amount / 100).toFixed(2),
           },
         });
       }
