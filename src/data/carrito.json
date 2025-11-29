@@ -5,7 +5,7 @@
     {
       "id": "prod-test",
       "name": "Producto de prueba para error",
-      "price": 666,
+      "price": 6666,
       "quantity": 1
     }
   ]
