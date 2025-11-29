@@ -2,10 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as paypal from '@paypal/checkout-server-sdk';
 
-/**
- * PayPal Payment Processor - Integración Real con PayPal SDK
- * Soporta CLP correctamente (sin decimales) y USD con decimales.
- */
 @Injectable()
 export class PayPalRealProcessor {
   private readonly logger = new Logger(PayPalRealProcessor.name);
@@ -15,18 +11,11 @@ export class PayPalRealProcessor {
     this.initializeClient();
   }
 
-  /**
-   * Inicializa el cliente de PayPal con credenciales del entorno
-   */
   private initializeClient() {
     try {
       const clientId = this.configService.get<string>('PAYPAL_CLIENT_ID');
       const clientSecret = this.configService.get<string>('PAYPAL_CLIENT_SECRET');
       const mode = this.configService.get<string>('PAYPAL_MODE', 'sandbox');
-
-      if (!clientId || !clientSecret) {
-        throw new Error('PayPal credentials not configured');
-      }
 
       let environment;
       if (mode === 'production') {
@@ -45,26 +34,25 @@ export class PayPalRealProcessor {
   }
 
   /**
-   * Crea una orden de pago (CLP soportado)
+   * CREAR ORDEN (Ahora convierte CLP → USD antes de mandarlo a PayPal)
    */
-  async createPayment(amount: number, currency: string, metadata: any) {
+  async createPayment(amountCLP: number, currency: string, metadata: any) {
     try {
+      // Conversión CLP → USD
+      // Ejemplo: 793 CLP → 0.79 USD
+      const conversionRate = 1000; // 1 USD = 1000 CLP
+      const amountUSD = (amountCLP / conversionRate).toFixed(2);
+
       const request = new paypal.orders.OrdersCreateRequest();
       request.prefer('return=representation');
-
-      // CLP no tiene decimales → PayPal requiere ENTERO
-      const formattedAmount =
-        currency === 'CLP'
-          ? amount.toString() // ejemplo: 793
-          : (amount / 100).toFixed(2); // ejemplo USD: 793 → 7.93
 
       request.requestBody({
         intent: 'CAPTURE',
         purchase_units: [
           {
             amount: {
-              currency_code: currency,
-              value: formattedAmount,
+              currency_code: "USD",
+              value: amountUSD, // 💵 Monto convertido a dólares
             },
             description: `Pedido #${metadata.sessionId || 'N/A'}`,
             custom_id: metadata.sessionId,
@@ -85,7 +73,7 @@ export class PayPalRealProcessor {
 
       const approvalLink = order.links.find((link) => link.rel === 'approve');
 
-      this.logger.log(`✅ PayPal order created: ${order.id}`);
+      this.logger.log(`🟢 PayPal order created: ${order.id}`);
 
       return {
         success: true,
@@ -100,7 +88,8 @@ export class PayPalRealProcessor {
   }
 
   /**
-   * Captura (ejecuta) un pago aprobado por el usuario
+   * CAPTURAR PAGO
+   * Convertimos USD → CLP nuevamente para almacenar en tu sistema interno
    */
   async capturePayment(orderId: string) {
     try {
@@ -113,22 +102,23 @@ export class PayPalRealProcessor {
       const capture = captureData.purchase_units[0].payments.captures[0];
 
       const currency = capture.amount.currency_code;
-      const rawValue = capture.amount.value; // string
+      const rawValue = capture.amount.value;
 
-      // Normalizar monto para devolverlo al sistema interno
-      const normalizedAmount =
-        currency === 'CLP'
-          ? parseInt(rawValue) // CLP → no decimales
-          : Math.round(parseFloat(rawValue) * 100); // USD → centavos
+      let finalAmountCLP = 0;
 
-      this.logger.log(`✅ PayPal payment captured: ${capture.id}`);
+      if (currency === 'USD') {
+        const conversionRate = 1000; // 1 USD = 1000 CLP
+        finalAmountCLP = Math.round(parseFloat(rawValue) * conversionRate);
+      }
+
+      this.logger.log(`🟢 PayPal payment captured: ${capture.id}`);
 
       return {
         success: true,
         transactionId: capture.id,
         status: capture.status,
-        amount: normalizedAmount,
-        currency,
+        amount: finalAmountCLP, // Devuelto en CLP a tu backend
+        currency: 'CLP',
         payerId: captureData.payer.payer_id,
         payerEmail: captureData.payer.email_address,
         createTime: capture.create_time,
@@ -139,9 +129,6 @@ export class PayPalRealProcessor {
     }
   }
 
-  /**
-   * Obtiene detalles de una orden de PayPal
-   */
   async getOrderDetails(orderId: string) {
     try {
       const request = new paypal.orders.OrdersGetRequest(orderId);
@@ -153,31 +140,24 @@ export class PayPalRealProcessor {
     }
   }
 
-  /**
-   * Reembolsa una transacción (Refund)
-   */
-  async refundPayment(captureId: string, amount?: number, currency?: string) {
+  async refundPayment(captureId: string, amountCLP?: number) {
     try {
       const request = new paypal.payments.CapturesRefundRequest(captureId);
 
-      if (amount && currency) {
-        const formatted =
-          currency === 'CLP'
-            ? amount.toString()
-            : (amount / 100).toFixed(2);
+      if (amountCLP) {
+        const conversionRate = 1000;
+        const amountUSD = (amountCLP / conversionRate).toFixed(2);
 
         request.requestBody({
           amount: {
-            currency_code: currency,
-            value: formatted,
+            currency_code: "USD",
+            value: amountUSD,
           },
         });
       }
 
       const response = await this.client.execute(request);
       const refund = response.result;
-
-      this.logger.log(`✅ PayPal refund created: ${refund.id}`);
 
       return {
         success: true,
