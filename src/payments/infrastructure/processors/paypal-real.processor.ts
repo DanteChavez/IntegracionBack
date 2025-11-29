@@ -5,9 +5,6 @@ import * as paypal from '@paypal/checkout-server-sdk';
 /**
  * PayPal Payment Processor - Integración Real con PayPal SDK
  * HU4: Pago con PayPal
- * 
- * Implementa la integración completa con PayPal usando el SDK oficial
- * Maneja creación de pagos, ejecución y webhooks
  */
 @Injectable()
 export class PayPalRealProcessor {
@@ -29,14 +26,11 @@ export class PayPalRealProcessor {
 
       this.logger.log(`🔑 PayPal Config - Mode: ${mode}`);
       this.logger.log(`🔑 PayPal Config - Client ID length: ${clientId?.length || 0}`);
-      this.logger.log(`🔑 PayPal Config - Secret length: ${clientSecret?.length || 0}`);
-      this.logger.log(`🔑 PayPal Config - Client ID starts with: ${clientId?.substring(0, 10)}...`);
 
       if (!clientId || !clientSecret) {
         throw new Error('PayPal credentials not configured');
       }
 
-      // Configurar entorno (sandbox o production)
       let environment;
       if (mode === 'production') {
         environment = new paypal.core.LiveEnvironment(clientId, clientSecret);
@@ -55,10 +49,17 @@ export class PayPalRealProcessor {
 
   /**
    * Crea una orden de pago en PayPal
-   * CA1, CA2: Permite seleccionar PayPal y redirige al entorno seguro
    */
   async createPayment(amount: number, currency: string, metadata: any) {
     try {
+
+      // 🔥 SOLO CAMBIO AQUÍ
+      // Si la moneda es CLP, convertimos a USD con dólar=1000
+      if (currency === 'CLP') {
+        currency = 'USD';
+        amount = amount / 1000;  // CLP → USD
+      }
+
       const request = new paypal.orders.OrdersCreateRequest();
       request.prefer('return=representation');
       request.requestBody({
@@ -67,7 +68,7 @@ export class PayPalRealProcessor {
           {
             amount: {
               currency_code: currency,
-              value: (amount / 100).toFixed(2), // Convertir de centavos a unidad
+              value: (amount / 100).toFixed(2),  // ⚠️ SE MANTIENE IGUAL
             },
             description: `Pedido #${metadata.sessionId || 'N/A'}`,
             custom_id: metadata.sessionId,
@@ -86,7 +87,6 @@ export class PayPalRealProcessor {
       const response = await this.client.execute(request);
       const order = response.result;
 
-      // CA3: Obtener el link de aprobación para redirigir al usuario
       const approvalLink = order.links.find(link => link.rel === 'approve');
 
       this.logger.log(`✅ PayPal order created: ${order.id}`);
@@ -104,8 +104,7 @@ export class PayPalRealProcessor {
   }
 
   /**
-   * Captura (ejecuta) un pago aprobado por el usuario
-   * CA4: Valida el token de autenticación devuelto por PayPal
+   * Captura el pago aprobado
    */
   async capturePayment(orderId: string) {
     try {
@@ -115,7 +114,6 @@ export class PayPalRealProcessor {
       const response = await this.client.execute(request);
       const captureData = response.result;
 
-      // Extraer información de la transacción
       const capture = captureData.purchase_units[0].payments.captures[0];
 
       this.logger.log(`✅ PayPal payment captured: ${capture.id}`);
@@ -124,7 +122,7 @@ export class PayPalRealProcessor {
         success: true,
         transactionId: capture.id,
         status: capture.status,
-        amount: parseFloat(capture.amount.value) * 100, // Convertir a centavos
+        amount: parseFloat(capture.amount.value) * 100,
         currency: capture.amount.currency_code,
         payerId: captureData.payer.payer_id,
         payerEmail: captureData.payer.email_address,
@@ -136,14 +134,10 @@ export class PayPalRealProcessor {
     }
   }
 
-  /**
-   * Obtiene detalles de una orden de PayPal
-   */
   async getOrderDetails(orderId: string) {
     try {
       const request = new paypal.orders.OrdersGetRequest(orderId);
       const response = await this.client.execute(request);
-      
       return response.result;
     } catch (error) {
       this.logger.error('❌ Error getting PayPal order details:', error);
@@ -151,10 +145,6 @@ export class PayPalRealProcessor {
     }
   }
 
-  /**
-   * Reembolsa una transacción de PayPal
-   * CA9: Permite la reversión del pago
-   */
   async refundPayment(captureId: string, amount?: number, currency?: string) {
     try {
       const request = new paypal.payments.CapturesRefundRequest(captureId);
