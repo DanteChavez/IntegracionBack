@@ -2,6 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as paypal from '@paypal/checkout-server-sdk';
 
+/**
+ * PayPal Payment Processor - Integración Real con PayPal SDK
+ * HU4: Pago con PayPal
+ * 
+ * Implementa la integración completa con PayPal usando el SDK oficial
+ * Maneja creación de pagos, ejecución y webhooks
+ */
 @Injectable()
 export class PayPalRealProcessor {
   private readonly logger = new Logger(PayPalRealProcessor.name);
@@ -11,12 +18,25 @@ export class PayPalRealProcessor {
     this.initializeClient();
   }
 
+  /**
+   * Inicializa el cliente de PayPal con credenciales del entorno
+   */
   private initializeClient() {
     try {
       const clientId = this.configService.get<string>('PAYPAL_CLIENT_ID');
       const clientSecret = this.configService.get<string>('PAYPAL_CLIENT_SECRET');
       const mode = this.configService.get<string>('PAYPAL_MODE', 'sandbox');
 
+      this.logger.log(`🔑 PayPal Config - Mode: ${mode}`);
+      this.logger.log(`🔑 PayPal Config - Client ID length: ${clientId?.length || 0}`);
+      this.logger.log(`🔑 PayPal Config - Secret length: ${clientSecret?.length || 0}`);
+      this.logger.log(`🔑 PayPal Config - Client ID starts with: ${clientId?.substring(0, 10)}...`);
+
+      if (!clientId || !clientSecret) {
+        throw new Error('PayPal credentials not configured');
+      }
+
+      // Configurar entorno (sandbox o production)
       let environment;
       if (mode === 'production') {
         environment = new paypal.core.LiveEnvironment(clientId, clientSecret);
@@ -25,7 +45,7 @@ export class PayPalRealProcessor {
       }
 
       this.client = new paypal.core.PayPalHttpClient(environment);
-
+      
       this.logger.log(`✅ PayPal Client initialized in ${mode} mode`);
     } catch (error) {
       this.logger.error('❌ Failed to initialize PayPal client:', error.message);
@@ -34,25 +54,20 @@ export class PayPalRealProcessor {
   }
 
   /**
-   * CREAR ORDEN (Ahora convierte CLP → USD antes de mandarlo a PayPal)
+   * Crea una orden de pago en PayPal
+   * CA1, CA2: Permite seleccionar PayPal y redirige al entorno seguro
    */
-  async createPayment(amountCLP: number, currency: string, metadata: any) {
+  async createPayment(amount: number, currency: string, metadata: any) {
     try {
-      // Conversión CLP → USD
-      // Ejemplo: 793 CLP → 0.79 USD
-      const conversionRate = 1000; // 1 USD = 1000 CLP
-      const amountUSD = (amountCLP / conversionRate).toFixed(2);
-
       const request = new paypal.orders.OrdersCreateRequest();
       request.prefer('return=representation');
-
       request.requestBody({
         intent: 'CAPTURE',
         purchase_units: [
           {
             amount: {
-              currency_code: "USD",
-              value: amountUSD, // 💵 Monto convertido a dólares
+              currency_code: currency,
+              value: (amount / 1000).toFixed(2), // Convertir de centavos a unidad
             },
             description: `Pedido #${metadata.sessionId || 'N/A'}`,
             custom_id: metadata.sessionId,
@@ -71,9 +86,10 @@ export class PayPalRealProcessor {
       const response = await this.client.execute(request);
       const order = response.result;
 
-      const approvalLink = order.links.find((link) => link.rel === 'approve');
+      // CA3: Obtener el link de aprobación para redirigir al usuario
+      const approvalLink = order.links.find(link => link.rel === 'approve');
 
-      this.logger.log(`🟢 PayPal order created: ${order.id}`);
+      this.logger.log(`✅ PayPal order created: ${order.id}`);
 
       return {
         success: true,
@@ -88,8 +104,8 @@ export class PayPalRealProcessor {
   }
 
   /**
-   * CAPTURAR PAGO
-   * Convertimos USD → CLP nuevamente para almacenar en tu sistema interno
+   * Captura (ejecuta) un pago aprobado por el usuario
+   * CA4: Valida el token de autenticación devuelto por PayPal
    */
   async capturePayment(orderId: string) {
     try {
@@ -99,26 +115,17 @@ export class PayPalRealProcessor {
       const response = await this.client.execute(request);
       const captureData = response.result;
 
+      // Extraer información de la transacción
       const capture = captureData.purchase_units[0].payments.captures[0];
 
-      const currency = capture.amount.currency_code;
-      const rawValue = capture.amount.value;
-
-      let finalAmountCLP = 0;
-
-      if (currency === 'USD') {
-        const conversionRate = 1000; // 1 USD = 1000 CLP
-        finalAmountCLP = Math.round(parseFloat(rawValue) * conversionRate);
-      }
-
-      this.logger.log(`🟢 PayPal payment captured: ${capture.id}`);
+      this.logger.log(`✅ PayPal payment captured: ${capture.id}`);
 
       return {
         success: true,
         transactionId: capture.id,
         status: capture.status,
-        amount: finalAmountCLP, // Devuelto en CLP a tu backend
-        currency: 'CLP',
+        amount: parseFloat(capture.amount.value) * 100, // Convertir a centavos
+        currency: capture.amount.currency_code,
         payerId: captureData.payer.payer_id,
         payerEmail: captureData.payer.email_address,
         createTime: capture.create_time,
@@ -129,10 +136,14 @@ export class PayPalRealProcessor {
     }
   }
 
+  /**
+   * Obtiene detalles de una orden de PayPal
+   */
   async getOrderDetails(orderId: string) {
     try {
       const request = new paypal.orders.OrdersGetRequest(orderId);
       const response = await this.client.execute(request);
+      
       return response.result;
     } catch (error) {
       this.logger.error('❌ Error getting PayPal order details:', error);
@@ -140,18 +151,19 @@ export class PayPalRealProcessor {
     }
   }
 
-  async refundPayment(captureId: string, amountCLP?: number) {
+  /**
+   * Reembolsa una transacción de PayPal
+   * CA9: Permite la reversión del pago
+   */
+  async refundPayment(captureId: string, amount?: number, currency?: string) {
     try {
       const request = new paypal.payments.CapturesRefundRequest(captureId);
-
-      if (amountCLP) {
-        const conversionRate = 1000;
-        const amountUSD = (amountCLP / conversionRate).toFixed(2);
-
+      
+      if (amount && currency) {
         request.requestBody({
           amount: {
-            currency_code: "USD",
-            value: amountUSD,
+            currency_code: currency,
+            value: (amount / 1000).toFixed(2),
           },
         });
       }
@@ -159,12 +171,14 @@ export class PayPalRealProcessor {
       const response = await this.client.execute(request);
       const refund = response.result;
 
+      this.logger.log(`✅ PayPal refund created: ${refund.id}`);
+
       return {
         success: true,
         refundId: refund.id,
         status: refund.status,
-        amount: refund.amount?.value,
-        currency: refund.amount?.currency_code,
+        amount: parseFloat(refund.amount.value) * 100,
+        currency: refund.amount.currency_code,
       };
     } catch (error) {
       this.logger.error('❌ Error refunding PayPal payment:', error);
