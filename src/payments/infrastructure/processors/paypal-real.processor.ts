@@ -2,6 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as paypal from '@paypal/checkout-server-sdk';
 
+/**
+ * PayPal Payment Processor - Integración Real con PayPal SDK
+ * HU4: Pago con PayPal
+ */
 @Injectable()
 export class PayPalRealProcessor {
   private readonly logger = new Logger(PayPalRealProcessor.name);
@@ -11,6 +15,9 @@ export class PayPalRealProcessor {
     this.initializeClient();
   }
 
+  /**
+   * Inicializa el cliente de PayPal con credenciales del entorno
+   */
   private initializeClient() {
     try {
       const clientId = this.configService.get<string>('PAYPAL_CLIENT_ID');
@@ -24,13 +31,15 @@ export class PayPalRealProcessor {
         throw new Error('PayPal credentials not configured');
       }
 
-      const environment =
-        mode === 'production'
-          ? new paypal.core.LiveEnvironment(clientId, clientSecret)
-          : new paypal.core.SandboxEnvironment(clientId, clientSecret);
+      let environment;
+      if (mode === 'production') {
+        environment = new paypal.core.LiveEnvironment(clientId, clientSecret);
+      } else {
+        environment = new paypal.core.SandboxEnvironment(clientId, clientSecret);
+      }
 
       this.client = new paypal.core.PayPalHttpClient(environment);
-
+      
       this.logger.log(`✅ PayPal Client initialized in ${mode} mode`);
     } catch (error) {
       this.logger.error('❌ Failed to initialize PayPal client:', error.message);
@@ -38,12 +47,17 @@ export class PayPalRealProcessor {
     }
   }
 
+  /**
+   * Crea una orden de pago en PayPal
+   */
   async createPayment(amount: number, currency: string, metadata: any) {
     try {
-      // 🔥 Corrección: una sola conversión
+
+      // 🔥 SOLO CAMBIO AQUÍ
+      // Si la moneda es CLP, convertimos a USD con dólar=1000
       if (currency === 'CLP') {
-        amount = amount / 1000; // CLP → USD
         currency = 'USD';
+        amount = amount / 1000;  // CLP → USD
       }
 
       const request = new paypal.orders.OrdersCreateRequest();
@@ -54,7 +68,7 @@ export class PayPalRealProcessor {
           {
             amount: {
               currency_code: currency,
-              value: amount.toFixed(2),  // <-- SOLO una conversión
+              value: (amount / 1000).toFixed(2),  // ⚠️ SE CAMBIO
             },
             description: `Pedido #${metadata.sessionId || 'N/A'}`,
             custom_id: metadata.sessionId,
@@ -73,7 +87,7 @@ export class PayPalRealProcessor {
       const response = await this.client.execute(request);
       const order = response.result;
 
-      const approvalLink = order.links.find((link) => link.rel === 'approve');
+      const approvalLink = order.links.find(link => link.rel === 'approve');
 
       this.logger.log(`✅ PayPal order created: ${order.id}`);
 
@@ -89,6 +103,9 @@ export class PayPalRealProcessor {
     }
   }
 
+  /**
+   * Captura el pago aprobado
+   */
   async capturePayment(orderId: string) {
     try {
       const request = new paypal.orders.OrdersCaptureRequest(orderId);
@@ -105,7 +122,7 @@ export class PayPalRealProcessor {
         success: true,
         transactionId: capture.id,
         status: capture.status,
-        amount: parseFloat(capture.amount.value) * 1000, // USD → CLP
+        amount: parseFloat(capture.amount.value) * 1000, // ⚠️ SE CAMBIO
         currency: capture.amount.currency_code,
         payerId: captureData.payer.payer_id,
         payerEmail: captureData.payer.email_address,
@@ -131,12 +148,12 @@ export class PayPalRealProcessor {
   async refundPayment(captureId: string, amount?: number, currency?: string) {
     try {
       const request = new paypal.payments.CapturesRefundRequest(captureId);
-
+      
       if (amount && currency) {
         request.requestBody({
           amount: {
             currency_code: currency,
-            value: (amount / 1000).toFixed(2),
+            value: (amount / 1000).toFixed(2), // ⚠️ SE CAMBIO
           },
         });
       }
@@ -150,7 +167,7 @@ export class PayPalRealProcessor {
         success: true,
         refundId: refund.id,
         status: refund.status,
-        amount: parseFloat(refund.amount.value) * 1000,
+        amount: parseFloat(refund.amount.value) * 1000, // ⚠️ SE CAMBIO
         currency: refund.amount.currency_code,
       };
     } catch (error) {
@@ -159,4 +176,3 @@ export class PayPalRealProcessor {
     }
   }
 }
-
