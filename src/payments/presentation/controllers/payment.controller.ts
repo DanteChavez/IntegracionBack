@@ -11,7 +11,7 @@ import {
   PaymentSessionInfoDto 
 } from '../../application/dto/payment-method-info.dto';
 import { PaymentAttemptGuard } from '../../infrastructure/guards/payment-attempt.guard';
-import { SecurityAuditService } from '../../infrastructure/services/security-audit.service';
+import { SecurityAuditService, SecurityEventType } from '../../infrastructure/services/security-audit.service';
 import { PaymentConfirmationService } from '../../infrastructure/services/payment-confirmation.service';
 import { Request } from 'express';
 
@@ -49,6 +49,74 @@ export class PaymentController {
   })
   async getPaymentMethods(): Promise<PaymentMethodInfoDto[]> {
     return this.paymentService.getAvailablePaymentMethods();
+  }
+
+  /**
+   * POST /api/pagos/inicializar
+   * Inicializar sesión de pago desde micro-servicio externo para realizar pedido
+   */
+  @Post('inicializar')
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('interfaz-pago')
+  @ApiOperation({
+    summary: 'Inicializar sesión de pago desde servicio externo',
+    description: 
+      'Recibe ID_Carrito e ID_Usuario desde un micro-servicio externo ' +
+      'para inicializar una sesión de pago.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        ID_Carrito: { type: 'string', example: '123' },
+        ID_Usuario: { type: 'string', example: '456' },
+      },
+      required: ['ID_Carrito', 'ID_Usuario'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Sesión de pago inicializada correctamente',
+    schema: {
+      example: {
+        success: true,
+        message: 'Sesión de pago inicializada',
+        sessionId: 'session_123_456',
+        data: {
+          ID_Carrito: '123',
+          ID_Usuario: '456',
+        },
+      },
+    },
+  })
+  async initPaymentSession(
+    @Body() body: { ID_Carrito: string; ID_Usuario: string },
+    @Req() request: Request,
+  ): Promise<any> {
+    const { ID_Carrito, ID_Usuario } = body;
+    
+    console.log(`🛒 Sesión de pago iniciada - Carrito: ${ID_Carrito}, Usuario: ${ID_Usuario}`);
+    
+    // Auditar la inicialización de sesión
+    this.securityAuditService.logSecurityEvent({
+      eventType: SecurityEventType.SESSION_INIT,
+      userId: ID_Usuario,
+      sessionId: `session_${ID_Carrito}_${ID_Usuario}`,
+      metadata: { ID_Carrito, ID_Usuario },
+      ipAddress: request.ip || 'unknown',
+      userAgent: request.headers['user-agent'] || 'unknown',
+      timestamp: new Date(),
+    });
+    
+    return {
+      success: true,
+      message: 'Sesión de pago inicializada',
+      sessionId: `session_${ID_Carrito}_${ID_Usuario}`,
+      data: {
+        ID_Carrito,
+        ID_Usuario,
+      },
+    };
   }
 
   /**
@@ -681,7 +749,3 @@ export class PaymentController {
     return await this.paymentService.getPaymentStatus(id);
   }
 }
-
-// TODO
-// GET reembolso de pago por id
-// GET todos los reembolsos
