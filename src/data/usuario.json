@@ -1,7 +1,7 @@
 {
-  "name": "Juan",
-  "surname": "Pérez",
+  "name": "María",
+  "surname": "González",
   "rut": "0.000.000-0",
-  "email": "juan.perez@example.com",
-  "address": "Madrid, España"
+  "email": "maria.gonzalez@example.com",
+  "address": "Buenos Aires, Argentina"
 }
